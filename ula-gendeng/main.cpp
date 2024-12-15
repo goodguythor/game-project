@@ -4,23 +4,27 @@
 #include <iostream>
 
 typedef struct Snake{
+    Color color;
     std::vector<Vector2> pos;
     Vector2 size;
-    std::vector<bool> dir;
     int speed, length;
-    Color color;
+    std::vector<bool> dir;
 } Snake;
 
 typedef struct Food{
-    Vector2 pos, size;
     Color color;
+    Vector2 pos, size;
     bool active;
 } Food;
 
+typedef struct Power{
+    
+} Power;
+
 const int screenWidth = 720;
 const int screenHeight = 480;
-const int squareSize = 48;
-const int maxLength = 100;
+const int squareSize = 24;
+const int maxLength = 480;
 
 // TODO:
 // 3. Create food 
@@ -33,23 +37,36 @@ const int maxLength = 100;
 // 10. Food Frenzy
 
 int main(){
-    InitWindow(screenWidth, screenHeight, "Ula Gendeng");
-    SetExitKey(KEY_NULL);
-    SetTargetFPS(60);
+    Snake snake = {
+        BLACK, 
+        {Vector2{0,96}}, 
+        Vector2{squareSize, squareSize}, 
+        2, 
+        1, 
+        {0,0,0,1}
+    };
+    Food food = {
+        RED, 
+        Vector2{float(GetRandomValue(0,screenWidth/squareSize-1)*squareSize),
+        float(GetRandomValue(0, (screenHeight-96)/squareSize-1)*squareSize + 96)}, 
+        Vector2{squareSize, squareSize}, 
+        true
+    };
     double startTime = GetTime();
     int score = 0;
     int highScore = 1000;
     bool exitWindowRequested = false;
     bool pause = false;
     bool gameOver = false;
-    Snake snake = {{Vector2{0,96},Vector2{0,144}}, Vector2{squareSize, squareSize}, {0,0,0,1}, 2, 2, BLACK};
     snake.pos.reserve(maxLength);
+    InitWindow(screenWidth, screenHeight, "Ula Gendeng");
+    SetExitKey(KEY_NULL);
+    SetTargetFPS(60);
     while(!WindowShouldClose()){
         BeginDrawing();
         ClearBackground(RAYWHITE);
         if(WindowShouldClose()||IsKeyPressed(KEY_ESCAPE)) exitWindowRequested = true;
         if(IsKeyPressed(KEY_P)) pause = !pause;
-        if(IsKeyPressed(KEY_SPACE)) gameOver = !gameOver;
         if(IsKeyPressed(KEY_LEFT)||IsKeyPressed(KEY_A)){
             if(snake.dir[1]||snake.dir[3]) snake.dir[0]=true;
             if(snake.dir[1]) snake.dir[1]=false;
@@ -105,6 +122,13 @@ int main(){
             DrawText(gameOverText, gameOverTextX, gameOverTextY, 48, RED);
             DrawText(scoreText, scoreTextX, scoreTextY, 30, MAROON);
             DrawText(highScoreText, highScoreTextX, highScoreTextY, 30, RAYWHITE);
+            if(IsKeyPressed(KEY_ENTER)){
+                snake.pos = {Vector2{0,96}};
+                snake.dir = {0,0,0,1};
+                snake.speed = 2;
+                snake.length = 1;
+                gameOver = false;
+            } 
         }
         else{
             DrawRectangle(0, 96, screenWidth, 384, WHITE);
@@ -114,6 +138,11 @@ int main(){
             int titleTextY = 24;
             DrawText(titleText, titleTextX, titleTextY, 48, BLACK);
             for(int i=0;i<snake.length;i++) DrawRectangleV(snake.pos[i], snake.size, snake.color);
+            if(food.active) DrawRectangleV(food.pos, food.size, food.color);
+            else{
+                food.pos = Vector2{float(GetRandomValue(0,screenWidth/squareSize-1)*squareSize),float(GetRandomValue(0, (screenHeight-96)/squareSize-1)*squareSize + 96)};
+                food.active = true;
+            }
             for(int i=snake.length-1;i>0;i--) snake.pos[i]=snake.pos[i-1];
             if(GetTime()-startTime>=(1/snake.speed)){
                 if(snake.dir[0]) snake.pos[0].x-=squareSize;
@@ -121,7 +150,8 @@ int main(){
                 else if(snake.dir[2]) snake.pos[0].x+=squareSize;
                 else snake.pos[0].y+=squareSize;
                 startTime=GetTime();
-            } 
+            }
+            if(snake.pos[0].x<0||snake.pos[0].x>720||snake.pos[0].y<96||snake.pos[0].y>480) gameOver = true;
         }
         EndDrawing();
     }
