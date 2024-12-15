@@ -54,7 +54,7 @@ int main(){
     };
     double startTime = GetTime();
     int score = 0;
-    int highScore = 1000;
+    int highScore = 0;
     bool exitWindowRequested = false;
     bool pause = false;
     bool gameOver = false;
@@ -143,6 +143,12 @@ int main(){
                 food.pos = Vector2{float(GetRandomValue(0,screenWidth/squareSize-1)*squareSize),float(GetRandomValue(0, (screenHeight-96)/squareSize-1)*squareSize + 96)};
                 food.active = true;
             }
+            if(snake.pos[0].x==food.pos.x&&snake.pos[0].y==food.pos.y){
+                score++;
+                food.active = false;
+                snake.length++;
+                snake.pos.push_back({0,0});
+            }
             for(int i=snake.length-1;i>0;i--) snake.pos[i]=snake.pos[i-1];
             if(GetTime()-startTime>=(1/snake.speed)){
                 if(snake.dir[0]) snake.pos[0].x-=squareSize;
@@ -151,7 +157,11 @@ int main(){
                 else snake.pos[0].y+=squareSize;
                 startTime=GetTime();
             }
-            if(snake.pos[0].x<0||snake.pos[0].x>720||snake.pos[0].y<96||snake.pos[0].y>480) gameOver = true;
+            if(snake.pos[0].x<0||snake.pos[0].x>720||snake.pos[0].y<96||snake.pos[0].y>480){
+                gameOver = true;
+                highScore = std::max(highScore, score);
+                score = 0;
+            }
         }
         EndDrawing();
     }
