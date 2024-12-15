@@ -127,16 +127,27 @@ int main(){
                 snake.dir = {0,0,0,1};
                 snake.speed = 2;
                 snake.length = 1;
+                food.active = false;
                 gameOver = false;
             } 
         }
         else{
             DrawRectangle(0, 96, screenWidth, 384, WHITE);
             const char* titleText = "Ula Gendeng";
+            const char* scoreText = TextFormat("SCORE: %i", score);
+            const char* highScoreText = TextFormat("HI-SCORE: %i", highScore);
             int titleTextWidth = MeasureText(titleText, 48);
             int titleTextX = (screenWidth - titleTextWidth)/2;
             int titleTextY = 24;
+            int scoreTextWidth = MeasureText(scoreText, 30);
+            int scoreTextX = 0;
+            int scoreTextY = 33; 
+            int highScoreTextWidth = MeasureText(highScoreText, 30);
+            int highScoreTextX = screenWidth - highScoreTextWidth;
+            int highScoreTextY = 33;
             DrawText(titleText, titleTextX, titleTextY, 48, BLACK);
+            DrawText(scoreText, scoreTextX, scoreTextY, 30, MAROON);
+            DrawText(highScoreText, highScoreTextX, highScoreTextY, 30, BLUE);
             for(int i=0;i<snake.length;i++) DrawRectangleV(snake.pos[i], snake.size, snake.color);
             if(food.active) DrawRectangleV(food.pos, food.size, food.color);
             else{
