@@ -27,7 +27,6 @@ const int squareSize = 24;
 const int maxLength = 480;
 
 // TODO:
-// 3. Create food 
 // 4. Create obstacle
 // 5. Reduce vision 
 // 6. Laser beam 
@@ -47,8 +46,7 @@ int main(){
     };
     Food food = {
         RED, 
-        Vector2{float(GetRandomValue(0,screenWidth/squareSize-1)*squareSize),
-        float(GetRandomValue(0, (screenHeight-96)/squareSize-1)*squareSize + 96)}, 
+        Vector2{float(GetRandomValue(0,screenWidth/squareSize-1)*squareSize),float(GetRandomValue(0, (screenHeight-96)/squareSize-1)*squareSize + 96)}, 
         Vector2{squareSize, squareSize}, 
         true
     };
@@ -59,6 +57,7 @@ int main(){
     bool pause = false;
     bool gameOver = false;
     snake.pos.reserve(maxLength);
+    while(food.pos.x==0&&food.pos.y==96) Vector2{float(GetRandomValue(0,screenWidth/squareSize-1)*squareSize),float(GetRandomValue(0, (screenHeight-96)/squareSize-1)*squareSize + 96)};
     InitWindow(screenWidth, screenHeight, "Ula Gendeng");
     SetExitKey(KEY_NULL);
     SetTargetFPS(60);
@@ -152,6 +151,9 @@ int main(){
             if(food.active) DrawRectangleV(food.pos, food.size, food.color);
             else{
                 food.pos = Vector2{float(GetRandomValue(0,screenWidth/squareSize-1)*squareSize),float(GetRandomValue(0, (screenHeight-96)/squareSize-1)*squareSize + 96)};
+                for(auto filled:snake.pos){
+                    while(food.pos.x==filled.x&&food.pos.y==filled.y) Vector2{float(GetRandomValue(0,screenWidth/squareSize-1)*squareSize),float(GetRandomValue(0, (screenHeight-96)/squareSize-1)*squareSize + 96)};
+                }
                 food.active = true;
             }
             if(snake.pos[0].x==food.pos.x&&snake.pos[0].y==food.pos.y){
