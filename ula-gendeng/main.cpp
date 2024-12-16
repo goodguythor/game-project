@@ -73,6 +73,7 @@ int main(){
         true
     };
     std::vector<int> powerDuration{3,4,2,3};
+    std::vector<std::vector<bool>> filled(31,std::vector<bool>(16,false));
     double startTime = GetTime();
     double powerTime = GetTime();
     double powerEnd;
@@ -84,10 +85,12 @@ int main(){
     bool gameOver = false;
     bool powered = false;
     snake.pos.reserve(maxLength);
+    filled[snake.pos[0].x/squareSize][snake.pos[0].y/squareSize] = true;
+    filled[food.pos.x/squareSize][food.pos.y/squareSize] = true;
     while(food.pos.x==0&&food.pos.y==96) food.pos = Vector2{float(GetRandomValue(0,screenWidth/squareSize-1)*squareSize),float(GetRandomValue(0, (screenHeight-96)/squareSize-1)*squareSize + 96)};
-    for(auto& power:powerUp){
-        while(power.pos.x==0&&power.pos.y==96) power.pos = Vector2{float(GetRandomValue(0,screenWidth/squareSize-1)*squareSize),float(GetRandomValue(0, (screenHeight-96)/squareSize-1)*squareSize + 96)};
-    }
+    // for(auto& power:powerUp){
+    //     while(power.pos.x==0&&power.pos.y==96) power.pos = Vector2{float(GetRandomValue(0,screenWidth/squareSize-1)*squareSize),float(GetRandomValue(0, (screenHeight-96)/squareSize-1)*squareSize + 96)};
+    // }
     InitWindow(screenWidth, screenHeight, "Ula Gendeng");
     SetExitKey(KEY_NULL);
     SetTargetFPS(60);
@@ -169,6 +172,8 @@ int main(){
             } 
         }
         else{
+            std::cout<<snake.pos[0].x<<' '<<snake.pos[0].y<<'\n';
+            // std::cout<<filled[snake.pos[0].x][snake.pos[0].y]<<'\n';
             DrawRectangle(0, 96, screenWidth, 384, WHITE);
             const char* titleText = "Ula Gendeng";
             const char* scoreText = TextFormat("SCORE: %i", score);
@@ -188,48 +193,47 @@ int main(){
             for(int i=0;i<snake.length;i++) DrawRectangleV(snake.pos[i], snake.size, snake.color);
             if(food.active) DrawRectangleV(food.pos, food.size, food.color);
             else{
+                filled[food.pos.x/squareSize][food.pos.y/squareSize] = false;
                 food.pos = Vector2{float(GetRandomValue(0,screenWidth/squareSize-1)*squareSize),float(GetRandomValue(0, (screenHeight-96)/squareSize-1)*squareSize + 96)};
-                for(int i=0;i<snake.length;i++){
-                    while(food.pos.x==snake.pos[i].x&&food.pos.y==snake.pos[i].y){
-                        food.pos = Vector2{float(GetRandomValue(0,screenWidth/squareSize-1)*squareSize),float(GetRandomValue(0, (screenHeight-96)/squareSize-1)*squareSize + 96)};
-                        i=0;
-                    }
-                }
+                while(filled[food.pos.x/squareSize][food.pos.y/squareSize]) food.pos = Vector2{float(GetRandomValue(0,screenWidth/squareSize-1)*squareSize),float(GetRandomValue(0, (screenHeight-96)/squareSize-1)*squareSize + 96)};
+                filled[food.pos.x/squareSize][food.pos.y/squareSize] = true;
                 food.active = true;
             }
-            if(cur!=-1&&!powered){
-                if(snake.pos[0].x==powerUp[cur].pos.x&&snake.pos[0].y==powerUp[cur].pos.y){
-                    if(cur==0) snake.speed = 10000;
-                    else if(cur==1) snake.speed = 10000;
-                    else if(cur==2) snake.speed = 10000;
-                    else snake.speed = 2;
-                    powered = true;
-                    powerTime = GetTime();
-                } 
-                else DrawRectangleV(powerUp[cur].pos, powerUp[cur].size, powerUp[cur].color);
+            if(cur!=-1&&!powered){ 
+                DrawRectangleV(powerUp[cur].pos, powerUp[cur].size, powerUp[cur].color);
                 if(GetTime()-powerEnd>=5){
                     cur = -1;
                     powerTime = GetTime();
                 }
             }
             if(GetTime()-startTime>=((double)0.5/snake.speed)){
-                if(snake.pos[0].x==food.pos.x&&snake.pos[0].y==food.pos.y){
-                    score++;
-                    food.active = false;
-                    snake.length++;
-                    snake.pos.push_back({0,0});
-                }
+                filled[snake.pos[snake.length-1].x/squareSize][snake.pos[snake.length-1].y/squareSize] = false;
                 for(int i=snake.length-1;i>0;i--) snake.pos[i]=snake.pos[i-1];
                 if(snake.dir[0]) snake.pos[0].x-=squareSize;
                 else if(snake.dir[1]) snake.pos[0].y-=squareSize;
                 else if(snake.dir[2]) snake.pos[0].x+=squareSize;
                 else snake.pos[0].y+=squareSize;
-                if(snake.pos[0].x<0||snake.pos[0].x>720||snake.pos[0].y<96||snake.pos[0].y>480){
+                if(snake.pos[0].x==food.pos.x&&snake.pos[0].y==food.pos.y){
+                    score++;
+                    food.active = false;
+                    snake.pos.push_back({snake.pos[snake.length-1].x,snake.pos[snake.length-1].y});
+                    snake.length++;
+                }
+                else if(cur!=-1&&!powered&&snake.pos[0].x==powerUp[cur].pos.x&&snake.pos[0].y==powerUp[cur].pos.y){
+                    if(cur==0) snake.speed = 10000;
+                    else if(cur==1) snake.speed = 10000;
+                    else if(cur==2) snake.speed = 10000;
+                    else snake.speed = 2;
+                    powered = true;
+                    powerTime = GetTime();
+                }
+                else if(snake.pos[0].x<0||snake.pos[0].x>screenWidth||snake.pos[0].y<96||snake.pos[0].y>screenHeight||filled[snake.pos[0].x/squareSize][snake.pos[0].y/squareSize]){
                     gameOver = true;
                     highScore = std::max(highScore, score);
                     score = 0;
                 }
                 startTime = GetTime();
+                if(!gameOver) filled[snake.pos[0].x/squareSize][snake.pos[0].y/squareSize] = true;
             }
             if(cur==-1&&GetTime()-powerTime>=5){
                 int mx = powerUp.size()-1;
