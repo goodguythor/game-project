@@ -65,11 +65,12 @@ static Food food = {
 static std::vector<int> powerDuration{3,4,2,3};
 static std::vector<std::vector<bool>> filled(31,std::vector<bool>(16,false));
 // static double startTime = GetTime();
-static double powerTime = GetTime();
-static double powerEnd;
+static int powerTime = 0;
+static int powerEnd;
 static int score = 0;
 static int highScore = 0;
 static int cur = -1;
+static int frameCounter = 0;
 static bool exitWindowRequested = false;
 static bool pause = false;
 static bool gameOver = false;
@@ -77,7 +78,6 @@ static bool powered = false;
 static bool runWindow = true;
 
 // TODO:
-// 1. Breakdown init, update, draw game
 // 2. Use frames instead of timer
 // 4. Create obstacle
 // 5. Reduce vision 
@@ -87,9 +87,6 @@ static bool runWindow = true;
 // 9. Immune to obstacle 
 // 10. Food Frenzy
 
-
-// TODO:
-// use static and move all the init variable here
 static void init(){
     snake.pos.reserve(maxLength);
     filled[snake.pos[0].x/squareSize][snake.pos[0].y/squareSize] = true;
@@ -103,8 +100,6 @@ static void init(){
     SetTargetFPS(60);
 }
 
-// TODO:
-// draw arena, food, snake, powerups
 static void draw(){
     if(exitWindowRequested){
         DrawRectangle(0, 140, screenWidth, 200, BLACK);
@@ -165,8 +160,6 @@ static void draw(){
     }
 }
 
-// TODO:
-// update snake, food and powerups behaviour & movement. 
 static void update(){
     if(exitWindowRequested){
         if(IsKeyPressed(KEY_Y)) runWindow = false;
@@ -182,7 +175,7 @@ static void update(){
             if(cur!=-1){
                 powerUp[cur].active = false;
                 powerUp[cur].pos = Vector2{float(GetRandomValue(0,screenWidth/squareSize-1)*squareSize),float(GetRandomValue(0, (screenHeight-96)/squareSize-1)*squareSize + 96)};
-                powerTime = GetTime();
+                powerTime = frameCounter;
                 powered = false;
             }
             // startTime = GetTime();
@@ -225,24 +218,24 @@ static void update(){
                 else if(cur==2) snake.speed = 2;
                 else snake.speed = 2;
                 powered = true;
-                powerTime = GetTime();
+                powerEnd = frameCounter;
             }
-            if(GetTime()-powerEnd>=5){
+            if(frameCounter-powerEnd==10){
                 cur = -1;
-                powerTime = GetTime();
+                powerTime = frameCounter;
             }
         }
-        if(cur==-1&&GetTime()-powerTime>=5){
+        if(cur==-1&&frameCounter-powerTime==10){
             int mx = powerUp.size()-1;
             cur = GetRandomValue(0,mx);
             powerUp[cur].active = true;
-            powerEnd = GetTime();
+            powerEnd = frameCounter;
         }
-        if(powered&&GetTime()-powerTime>=powerDuration[cur]){
+        if(powered&&frameCounter-powerEnd==powerDuration[cur]){
             snake.speed = 1;
             powerUp[cur].active = false;
             powerUp[cur].pos = Vector2{float(GetRandomValue(0,screenWidth/squareSize-1)*squareSize),float(GetRandomValue(0, (screenHeight-96)/squareSize-1)*squareSize + 96)};
-            powerTime = GetTime();
+            powerTime = frameCounter;
             cur = -1;
             powered = false;
         }
@@ -268,6 +261,7 @@ static void update(){
     }
     if(WindowShouldClose()||IsKeyPressed(KEY_ESCAPE)) exitWindowRequested = true;
     if(IsKeyPressed(KEY_P)) pause = !pause;
+    frameCounter++;
 }
 
 int main(){
