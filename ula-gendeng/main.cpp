@@ -63,7 +63,7 @@ static Food food = {
     true
 };
 static std::vector<int> powerDuration{3,4,2,3};
-static std::vector<std::vector<bool>> filled(31,std::vector<bool>(16,false));
+// static std::vector<std::vector<bool>> filled(31,std::vector<bool>(18,false));
 // static double startTime = GetTime();
 static int powerTime = 0;
 static int powerEnd;
@@ -78,6 +78,8 @@ static bool powered = false;
 static bool runWindow = true;
 
 // TODO:
+// 0. Remove O(1) idea & handle duplicate position with loop 
+// 1. Fix powerups
 // 2. Use frames instead of timer
 // 4. Create obstacle
 // 5. Reduce vision 
@@ -87,20 +89,29 @@ static bool runWindow = true;
 // 9. Immune to obstacle 
 // 10. Food Frenzy
 
+static bool hitSnake(const Snake& snake){
+    for(int i=1;i<snake.length;i++){
+        if(snake.pos[0].x==snake.pos[i].x&&snake.pos[0].y==snake.pos[i].y) return true;
+    }
+    return false;
+}
+
 static void init(){
+    // filled.resize(31,std::vector<bool>(18,false));
     snake.pos.reserve(maxLength);
-    filled[snake.pos[0].x/squareSize][snake.pos[0].y/squareSize] = true;
-    filled[food.pos.x/squareSize][food.pos.y/squareSize] = true;
+    // mark snake position
+    // filled[snake.pos[0].x/squareSize][snake.pos[0].y/squareSize] = true;
+    // avoid food position conflict and mark the position
     while(food.pos.x==0&&food.pos.y==96) food.pos = Vector2{float(GetRandomValue(0,screenWidth/squareSize-1)*squareSize),float(GetRandomValue(0, (screenHeight-96)/squareSize-1)*squareSize + 96)};
-    // for(auto& power:powerUp){
-    //     while(power.pos.x==0&&power.pos.y==96) power.pos = Vector2{float(GetRandomValue(0,screenWidth/squareSize-1)*squareSize),float(GetRandomValue(0, (screenHeight-96)/squareSize-1)*squareSize + 96)};
-    // }
-    InitWindow(screenWidth, screenHeight, "Ula Gendeng");
-    SetExitKey(KEY_NULL);
-    SetTargetFPS(60);
+    // filled[food.pos.x/squareSize][food.pos.y/squareSize] = true;
+    // avoid power ups position conflict and mark the position
+    for(auto& power:powerUp){
+        while(power.pos.x==0&&power.pos.y==96) power.pos = Vector2{float(GetRandomValue(0,screenWidth/squareSize-1)*squareSize),float(GetRandomValue(0, (screenHeight-96)/squareSize-1)*squareSize + 96)};
+    }
 }
 
 static void draw(){
+    // draw exit screen
     if(exitWindowRequested){
         DrawRectangle(0, 140, screenWidth, 200, BLACK);
         const char* exitText = "Are you sure you want to exit program? [Y/N]"; 
@@ -109,6 +120,7 @@ static void draw(){
         int exitTextY = (screenHeight - 30)/2;
         DrawText(exitText, exitTextX, exitTextY, 30, WHITE);
     }
+    // draw pause screen
     else if(pause){
         DrawRectangle(0, 140, screenWidth, 200, BLACK);
         const char* exitText = "PAUSED"; 
@@ -117,6 +129,7 @@ static void draw(){
         int exitTextY = (screenHeight - 30)/2;
         DrawText(exitText, exitTextX, exitTextY, 30, WHITE);
     }
+    // draw game over screen
     else if(gameOver){
         DrawRectangle(0, 140, screenWidth, 200, BLACK);
         const char* gameOverText = "Game Over";
@@ -135,6 +148,7 @@ static void draw(){
         DrawText(scoreText, scoreTextX, scoreTextY, 30, MAROON);
         DrawText(highScoreText, highScoreTextX, highScoreTextY, 30, RAYWHITE); 
     }
+    // draw game screen
     else{
         // std::cout<<snake.pos[0].x<<' '<<snake.pos[0].y<<'\n';
         // std::cout<<filled[snake.pos[0].x][snake.pos[0].y]<<'\n';
@@ -161,57 +175,77 @@ static void draw(){
 }
 
 static void update(){
+    // std::cout<<frameCounter<<'\n';
+    // exit screen logic
     if(exitWindowRequested){
+        // y = exit, n = back
         if(IsKeyPressed(KEY_Y)) runWindow = false;
         else if(IsKeyPressed(KEY_N)) exitWindowRequested = false;
     }
+    // game over screen logic
     else if(gameOver){
+        // enter = start game
         if(IsKeyPressed(KEY_ENTER)){
+            // init original snake
             snake.pos = {Vector2{0,96}};
             snake.dir = {0,0,0,1};
             snake.speed = 1;
             snake.length = 1;
+            // init food
             food.active = false;
+            // init power ups
             if(cur!=-1){
                 powerUp[cur].active = false;
                 powerUp[cur].pos = Vector2{float(GetRandomValue(0,screenWidth/squareSize-1)*squareSize),float(GetRandomValue(0, (screenHeight-96)/squareSize-1)*squareSize + 96)};
                 powerTime = frameCounter;
                 powered = false;
             }
-            // startTime = GetTime();
             cur = -1;
+            powered = false;
             gameOver = false;
+            init();
         }
     }
+    // game logic
     else if(!pause){
+        // turn left
         if(IsKeyPressed(KEY_LEFT)||IsKeyPressed(KEY_A)){
             if(snake.dir[1]||snake.dir[3]) snake.dir[0]=true;
             if(snake.dir[1]) snake.dir[1]=false;
             else if(snake.dir[3]) snake.dir[3]=false;
         }
+        // move up
         if(IsKeyPressed(KEY_UP)||IsKeyPressed(KEY_W)){
             if(snake.dir[0]||snake.dir[2]) snake.dir[1]=true;
             if(snake.dir[0]) snake.dir[0]=false;
             else if(snake.dir[2]) snake.dir[2]=false;
         }
+        // turn right
         if(IsKeyPressed(KEY_RIGHT)||IsKeyPressed(KEY_D)){
             if(snake.dir[1]||snake.dir[3]) snake.dir[2]=true;
             if(snake.dir[1]) snake.dir[1]=false;
             else if(snake.dir[3]) snake.dir[3]=false;
         }
+        // move down
         if(IsKeyPressed(KEY_DOWN)||IsKeyPressed(KEY_S)){
             if(snake.dir[0]||snake.dir[2]) snake.dir[3]=true;
             if(snake.dir[0]) snake.dir[0]=false;
             else if(snake.dir[2]) snake.dir[2]=false;
         }
+        // respawn food
         if(!food.active){
-            filled[food.pos.x/squareSize][food.pos.y/squareSize] = false;
             food.pos = Vector2{float(GetRandomValue(0,screenWidth/squareSize-1)*squareSize),float(GetRandomValue(0, (screenHeight-96)/squareSize-1)*squareSize + 96)};
-            while(filled[food.pos.x/squareSize][food.pos.y/squareSize]) food.pos = Vector2{float(GetRandomValue(0,screenWidth/squareSize-1)*squareSize),float(GetRandomValue(0, (screenHeight-96)/squareSize-1)*squareSize + 96)};
-            filled[food.pos.x/squareSize][food.pos.y/squareSize] = true;
+            for(int i=0;i<snake.length;i++){
+                while(food.pos.x==snake.pos[i].x&&food.pos.y==snake.pos[i].y){
+                    food.pos = Vector2{float(GetRandomValue(0,screenWidth/squareSize-1)*squareSize),float(GetRandomValue(0, (screenHeight-96)/squareSize-1)*squareSize + 96)};
+                    i=0;
+                } 
+            }
             food.active = true;
         }
+        // power ups logic
         if(cur!=-1&&!powered){ 
+            // eat power up logic
             if(snake.pos[0].x==powerUp[cur].pos.x&&snake.pos[0].y==powerUp[cur].pos.y){
                 if(cur==0) snake.speed = 5;
                 else if(cur==1) snake.speed = 3;
@@ -219,27 +253,40 @@ static void update(){
                 else snake.speed = 2;
                 powered = true;
                 powerEnd = frameCounter;
+                powerUp[cur].active = false;
+                // filled[powerUp[cur].pos.x/squareSize][powerUp[cur].pos.y/squareSize] = false;
             }
+            // power up vanish
             if(frameCounter-powerEnd==10){
-                cur = -1;
+                powerUp[cur].active = false;
                 powerTime = frameCounter;
+                // filled[powerUp[cur].pos.x/squareSize][powerUp[cur].pos.y/squareSize] = false;
+                cur = -1;
             }
         }
+        //  show power up
         if(cur==-1&&frameCounter-powerTime==10){
             int mx = powerUp.size()-1;
             cur = GetRandomValue(0,mx);
             powerUp[cur].active = true;
+            // filled[powerUp[cur].pos.x/squareSize][powerUp[cur].pos.y/squareSize] = true;
             powerEnd = frameCounter;
         }
+        // check power duration 
         if(powered&&frameCounter-powerEnd==powerDuration[cur]){
             snake.speed = 1;
             powerUp[cur].active = false;
             powerUp[cur].pos = Vector2{float(GetRandomValue(0,screenWidth/squareSize-1)*squareSize),float(GetRandomValue(0, (screenHeight-96)/squareSize-1)*squareSize + 96)};
+            for(int i=0;i<snake.length;i++){
+                while(powerUp[cur].pos.x==snake.pos[i].x&&powerUp[cur].pos.y==snake.pos[i].y){
+                    powerUp[cur].pos = Vector2{float(GetRandomValue(0,screenWidth/squareSize-1)*squareSize),float(GetRandomValue(0, (screenHeight-96)/squareSize-1)*squareSize + 96)};
+                    i=0;
+                }
+            }
             powerTime = frameCounter;
             cur = -1;
             powered = false;
         }
-        filled[snake.pos[snake.length-1].x/squareSize][snake.pos[snake.length-1].y/squareSize] = false;
         int dist = squareSize*snake.speed;
         for(int i=snake.length-1;i>0;i--) snake.pos[i] = snake.pos[i-1];
         if(snake.dir[0]) snake.pos[0].x-=dist;
@@ -252,12 +299,11 @@ static void update(){
             snake.pos.push_back({snake.pos[snake.length-1].x,snake.pos[snake.length-1].y});
             snake.length++;
         }
-        else if(snake.pos[0].x<0||snake.pos[0].x>screenWidth||snake.pos[0].y<96||snake.pos[0].y>screenHeight||filled[snake.pos[0].x/squareSize][snake.pos[0].y/squareSize]){
+        else if(snake.pos[0].x<0||snake.pos[0].x>screenWidth||snake.pos[0].y<96||snake.pos[0].y>screenHeight||hitSnake(snake)){
             gameOver = true;
             highScore = std::max(highScore, score);
             score = 0;
         }
-        if(!gameOver) filled[snake.pos[0].x/squareSize][snake.pos[0].y/squareSize] = true;
     }
     if(WindowShouldClose()||IsKeyPressed(KEY_ESCAPE)) exitWindowRequested = true;
     if(IsKeyPressed(KEY_P)) pause = !pause;
@@ -265,6 +311,10 @@ static void update(){
 }
 
 int main(){
+    // init window
+    InitWindow(screenWidth, screenHeight, "Ula Gendeng");
+    SetExitKey(KEY_NULL);
+    SetTargetFPS(60);
     init();
     while(runWindow){
         BeginDrawing();
