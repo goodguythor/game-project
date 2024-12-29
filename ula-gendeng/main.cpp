@@ -63,7 +63,7 @@ static Food food = {
     true
 };
 static std::vector<int> powerDuration{3,4,2,3};
-// static std::vector<std::vector<bool>> filled(31,std::vector<bool>(18,false));
+static std::vector<std::vector<bool>> filled(30,std::vector<bool>(20,false));
 // static double startTime = GetTime();
 static int powerTime = 0;
 static int powerEnd;
@@ -78,6 +78,7 @@ static bool powered = false;
 static bool runWindow = true;
 
 // TODO:
+// Fix issue in gpt
 // 0. Remove O(1) idea & handle duplicate position with loop 
 // 1. Fix powerups
 // 2. Use frames instead of timer
@@ -175,6 +176,7 @@ static void draw(){
 }
 
 static void update(){
+    std::cout<<powerUp[0].active<<' '<<powerUp[1].active<<' '<<powerUp[2].active<<' '<<powerUp[3].active<<'\n';
     // std::cout<<frameCounter<<'\n';
     // exit screen logic
     if(exitWindowRequested){
@@ -197,10 +199,9 @@ static void update(){
             if(cur!=-1){
                 powerUp[cur].active = false;
                 powerUp[cur].pos = Vector2{float(GetRandomValue(0,screenWidth/squareSize-1)*squareSize),float(GetRandomValue(0, (screenHeight-96)/squareSize-1)*squareSize + 96)};
-                powerTime = frameCounter;
-                powered = false;
             }
             cur = -1;
+            powerTime = frameCounter;
             powered = false;
             gameOver = false;
             init();
@@ -247,10 +248,26 @@ static void update(){
         if(cur!=-1&&!powered){ 
             // eat power up logic
             if(snake.pos[0].x==powerUp[cur].pos.x&&snake.pos[0].y==powerUp[cur].pos.y){
-                if(cur==0) snake.speed = 5;
-                else if(cur==1) snake.speed = 3;
-                else if(cur==2) snake.speed = 2;
-                else snake.speed = 2;
+                if(cur==0){
+                    for(int i=0;i<snake.length;i++) snake.pos.push_back({snake.pos[snake.length-1].x,snake.pos[snake.length-1].y});
+                    score+=snake.length;
+                    snake.length*=2;
+                }
+                else if(cur==1){
+                    for(int i=0;i<5;i++) snake.pos.push_back({snake.pos[snake.length-1].x,snake.pos[snake.length-1].y});
+                    snake.length+=5;
+                    score+=5;
+                } 
+                else if(cur==2){
+                    for(int i=0;i<3;i++) snake.pos.push_back({snake.pos[snake.length-1].x,snake.pos[snake.length-1].y});
+                    snake.length+=3;
+                    score+=3;
+                } 
+                else{
+                    for(int i=0;i<2;i++) snake.pos.push_back({snake.pos[snake.length-1].x,snake.pos[snake.length-1].y});
+                    snake.length+=2;
+                    score+=2;
+                }
                 powered = true;
                 powerEnd = frameCounter;
                 powerUp[cur].active = false;
@@ -273,7 +290,7 @@ static void update(){
             powerEnd = frameCounter;
         }
         // check power duration 
-        if(powered&&frameCounter-powerEnd==powerDuration[cur]){
+        if(powered&&frameCounter-powerEnd>=powerDuration[cur]){
             snake.speed = 1;
             powerUp[cur].active = false;
             powerUp[cur].pos = Vector2{float(GetRandomValue(0,screenWidth/squareSize-1)*squareSize),float(GetRandomValue(0, (screenHeight-96)/squareSize-1)*squareSize + 96)};
@@ -299,7 +316,7 @@ static void update(){
             snake.pos.push_back({snake.pos[snake.length-1].x,snake.pos[snake.length-1].y});
             snake.length++;
         }
-        else if(snake.pos[0].x<0||snake.pos[0].x>screenWidth||snake.pos[0].y<96||snake.pos[0].y>screenHeight||hitSnake(snake)){
+        else if(snake.pos[0].x<0||snake.pos[0].x>screenWidth-squareSize||snake.pos[0].y<96||snake.pos[0].y>screenHeight-squareSize||hitSnake(snake)){
             gameOver = true;
             highScore = std::max(highScore, score);
             score = 0;
