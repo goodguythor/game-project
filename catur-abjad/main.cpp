@@ -7,6 +7,7 @@ static std::vector<std::vector<int>> grid(8,std::vector<int>(8));
 static std::vector<int> clickedPiece{-1,-1};
 static const int screenWidth = 720;
 static const int screenHeight = 720;
+static int move = 0;
 static bool runWindow = true;
 static bool clicked = false;
 
@@ -193,8 +194,12 @@ static void update(){
             int piece=grid[mouseX][mouseY];
             // std::cout<<piece<<'\n';
             if(!clicked&&piece!=10){
-                clicked=1;
-                clickedPiece={mouseX,mouseY};
+                bool side=grid[mouseX][mouseY]/5;
+                // std::cout<<move<<' '<<side<<'\n';
+                if((move&1)==side){
+                    clicked=1;
+                    clickedPiece={mouseX,mouseY};    
+                }
             }
             else if(clicked){
                 int x=clickedPiece[0],y=clickedPiece[1];
@@ -302,6 +307,7 @@ static void update(){
                 }
                 if(good){
                     grid[x][y]=10;
+                    move++;
                 }
                 clicked=0;
                 clickedPiece={-1,-1};
