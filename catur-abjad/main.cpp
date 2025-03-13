@@ -20,6 +20,7 @@ static bool validGrid(int x,int y){
 }
 
 static void init(){
+    ClearBackground(RAYWHITE);
     for(int i=2;i<6;i++){
         for(int j=0;j<8;j++) grid[i][j]=10;
     }
@@ -197,7 +198,7 @@ static void draw(){
         else c="U";
         // std::cout<<grid[i][j]<<'\n';
         while(l--){
-            float centerX=30+cntL/8*60, centerY=150+60*(cntL%8);
+            float centerX=90-cntL/8*60, centerY=150+60*(cntL%8);
             Vector2 textPos;
             Vector2 textSize=MeasureTextEx(GetFontDefault(),c,30,1);
             textPos.x=centerX-(textSize.x/2);
@@ -245,6 +246,8 @@ static void update(){
             init();
             clicked=false;
             gameOver=false;
+            graveyard=std::vector<std::pair<int,int>>(5);
+            moveCount=0;
         }
         else{
             int mouseX=(mousePos.x - 120)/60;
