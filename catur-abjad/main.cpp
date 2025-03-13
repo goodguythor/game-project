@@ -4,7 +4,7 @@
 #include <iostream>
 
 static std::vector<std::vector<int>> grid(8,std::vector<int>(8));
-static std::vector<int> clickedPiece(2);
+static std::vector<int> clickedPiece{-1,-1};
 static const int screenWidth = 720;
 static const int screenHeight = 720;
 static bool runWindow = true;
@@ -54,14 +54,106 @@ static void draw(){
         DrawRectangle(posX,posY,60,60,WHITE);
         if(piece==1){
             if(x>0&&grid[x-1][y]/5!=side) DrawRectangle(posX-60,posY,60,60,WHITE);
-            else if(x<7&&grid[x+1][y]/5!=side) DrawRectangle(posX+60,posY,60,60,WHITE);
-            else if(y>0&&grid[x][y-1]/5!=side) DrawRectangle(posX,posY-60,60,60,WHITE);
-            else if(y<7&&grid[x][y+1]/5!=side) DrawRectangle(posX,posY+60,60,60,WHITE);
+            if(x<7&&grid[x+1][y]/5!=side) DrawRectangle(posX+60,posY,60,60,WHITE);
+            if(y>0&&grid[x][y-1]/5!=side) DrawRectangle(posX,posY-60,60,60,WHITE);
+            if(y<7&&grid[x][y+1]/5!=side) DrawRectangle(posX,posY+60,60,60,WHITE);
         }
-        // else if(piece==1) 
-        // else if(piece==3) 
-        // else if(piece==4) 
-        // else 
+        else if(piece==0){
+            if(x>0){
+                if(y>0&&grid[x-1][y-1]/5!=side) DrawRectangle(posX-60,posY-60,60,60,WHITE);
+                if(y<7&&grid[x-1][y+1]/5!=side) DrawRectangle(posX-60,posY+60,60,60,WHITE); 
+            }
+            if(x<7){
+                if(y>0&&grid[x+1][y-1]/5!=side) DrawRectangle(posX+60,posY-60,60,60,WHITE);
+                if(y<7&&grid[x+1][y+1]/5!=side) DrawRectangle(posX+60,posY+60,60,60,WHITE); 
+            }
+        } 
+        else if(piece==2){
+            if(x>0){
+                for(int i=1;x-i>=0&&i<=y;i++){
+                    int place=grid[x-i][y-i];
+                    if(place/5!=side){
+                        DrawRectangle(posX-60*i,posY-60*i,60,60,WHITE);
+                        if(place!=10) break;
+                    } 
+                    else break;
+                }
+                for(int i=1;x-i>=0&&i<8-y;i++){
+                    int place=grid[x-i][y+i];
+                    if(place/5!=side){
+                        DrawRectangle(posX-60*i,posY+60*i,60,60,WHITE);
+                        if(place!=10) break;
+                    } 
+                    else break;
+                } 
+            }
+            if(x<7){
+                for(int i=1;x+i<8&&i<=y;i++){
+                    int place=grid[x+i][y-i];
+                    if(place/5!=side){
+                        DrawRectangle(posX+60*i,posY-60*i,60,60,WHITE);
+                        if(place!=10) break;
+                    }
+                    else break;
+                }
+                for(int i=1;x+i<8&&i<8-y;i++){
+                    int place=grid[x+i][y+i];
+                    if(place/5!=side){
+                        DrawRectangle(posX+60*i,posY+60*i,60,60,WHITE);
+                        if(place!=10) break;
+                    }
+                    else break;
+                } 
+            }
+        } 
+        else if(piece==3){
+            for(int i=1;i<=y;i++){
+                int place=grid[x][y-i];
+                if(place/5!=side){
+                    DrawRectangle(posX,posY-60*i,60,60,WHITE);
+                    if(place!=10) break;
+                }
+                else break;
+            }
+            for(int i=1;i<8-y;i++){
+                int place=grid[x][y+i];
+                if(place/5!=side){
+                    DrawRectangle(posX,posY+60*i,60,60,WHITE);
+                    if(place!=10) break;
+                }
+                else break;
+            }
+            for(int i=1;i<=x;i++){
+                int place=grid[x-i][y];
+                if(place/5!=side){
+                    DrawRectangle(posX-60*i,posY,60,60,WHITE);
+                    if(place!=10) break;
+                }
+                else break;
+            }
+            for(int i=1;i<8-x;i++){
+                int place=grid[x+i][y];
+                if(place/5!=side){
+                    DrawRectangle(posX+60*i,posY,60,60,WHITE);
+                    if(place!=10) break;
+                }
+                else break;
+            }
+        }
+        else{
+            if(x>0){
+                if(grid[x-1][y]/5!=side) DrawRectangle(posX-60,posY,60,60,WHITE);
+                if(y>0&&grid[x-1][y-1]/5!=side) DrawRectangle(posX-60,posY-60,60,60,WHITE);
+                if(y<7&&grid[x-1][y+1]/5!=side) DrawRectangle(posX-60,posY+60,60,60,WHITE); 
+            }
+            if(x<7){
+                if(grid[x+1][y]/5!=side) DrawRectangle(posX+60,posY,60,60,WHITE);
+                if(y>0&&grid[x+1][y-1]/5!=side) DrawRectangle(posX+60,posY-60,60,60,WHITE);
+                if(y<7&&grid[x+1][y+1]/5!=side) DrawRectangle(posX+60,posY+60,60,60,WHITE); 
+            }
+            if(y>0&&grid[x][y-1]/5!=side) DrawRectangle(posX,posY-60,60,60,WHITE);
+            if(y<7&&grid[x][y+1]/5!=side) DrawRectangle(posX,posY+60,60,60,WHITE);
+        }
     }
     // DrawRectangle(120,120,480,480, WHITE);
     for(int i=120;i<=600;i+=60) DrawLine(i,120,i,600,BLACK);
@@ -95,26 +187,125 @@ static void draw(){
 static void update(){
     Vector2 mousePos = GetMousePosition();
     if(IsMouseButtonPressed(MOUSE_LEFT_BUTTON)){
-        
         int mouseX=(mousePos.x - 120)/60;
         int mouseY=(mousePos.y - 120)/60;
         if(validGrid(mouseX,mouseY)){
             int piece=grid[mouseX][mouseY];
-            if(!clicked&&piece>0){
+            // std::cout<<piece<<'\n';
+            if(!clicked&&piece!=10){
                 clicked=1;
                 clickedPiece={mouseX,mouseY};
             }
             else if(clicked){
+                int x=clickedPiece[0],y=clickedPiece[1];
+                int piece=grid[x][y]%5;
+                bool side=grid[x][y]/5;
+                bool good=0;
+                if(piece==1){
+                    if(abs(mouseX-x)+abs(mouseY-y)==1&&grid[mouseX][mouseY]/5!=side){
+                        grid[mouseX][mouseY]=grid[x][y]; 
+                        good=1;
+                    }
+                }
+                else if(piece==0){
+                    if(abs(mouseX-x)==1&&abs(mouseY-y)==1&&grid[mouseX][mouseY]/5!=side){
+                        grid[mouseX][mouseY]=grid[x][y]; 
+                        good=1;
+                    }
+                } 
+                else if(piece==2){
+                    int difX=abs(mouseX-x),difY=abs(mouseY-y);
+                    if(difX==difY&&grid[mouseX][mouseY]/5!=side){
+                        bool check=1;
+                        for(int i=1;i<difX;i++){
+                            if(mouseX>x){
+                                if(mouseY>y){
+                                    if(grid[x+i][y+i]!=10){
+                                        check=0;
+                                        break;
+                                    }
+                                }
+                                else{
+                                    if(grid[x+i][y-i]!=10){
+                                        check=0;
+                                        break;
+                                    }
+                                }
+                            }
+                            else{
+                                if(mouseY>y){
+                                    if(grid[x-i][y+i]!=10){
+                                        check=0;
+                                        break;
+                                    }
+                                }
+                                else{
+                                    if(grid[x-i][y-i]!=10){
+                                        check=0;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        if(check){
+                            grid[mouseX][mouseY]=grid[x][y]; 
+                            good=1;
+                        }
+                    }
+                } 
+                else if(piece==3){
+                    int difX=abs(mouseX-x),difY=abs(mouseY-y);
+                    int mx=std::max(difX,difY),mn=std::min(difX,difY);
+                    if(mx>0&&mn==0&&grid[mouseX][mouseY]/5!=side){
+                        bool check=1;
+                        for(int i=1;i<mx;i++){
+                            if(mx==difX){
+                                if(mouseX>x){
+                                    if(grid[x+i][y]!=10){
+                                        check=0;
+                                        break;
+                                    }
+                                }
+                                else{
+                                    if(grid[x-i][y]!=10){
+                                        check=0;
+                                        break;
+                                    }
+                                }
+                            }
+                            else{
+                                if(mouseY<y){
+                                    if(grid[x][y-i]!=10){
+                                        check=0;
+                                        break;
+                                    }
+                                }
+                                else{
+                                    if(grid[x][y+i]!=10){
+                                        check=0;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        if(check){
+                            grid[mouseX][mouseY]=grid[x][y]; 
+                            good=1;
+                        }   
+                    }
+                }
+                else{
+                    if((abs(mouseX-x)<=1)&&(abs(mouseY-y)<=1)&&grid[mouseX][mouseY]/5!=side){
+                        grid[mouseX][mouseY]=grid[x][y]; 
+                        good=1;
+                    }
+                }
+                if(good){
+                    grid[x][y]=10;
+                }
                 clicked=0;
-                clickedPiece.clear();
+                clickedPiece={-1,-1};
             }
-            // if(piece==1){
-
-            // }
-            // else if(piece==2) 
-            // else if(piece==3) 
-            // else if(piece==4) 
-            // else if(piece==5) 
         }
     }
 }
