@@ -227,13 +227,13 @@ static void update(){
                     bool good=0;
                     if(piece==1){
                         if(abs(mouseX-x)+abs(mouseY-y)==1&&enemy/5!=side){
-                            grid[mouseX][mouseY]=grid[x][y]; 
+                            grid[mouseX][mouseY]=(side&&mouseX==0)?8:(!side&&mouseX==7)?3:grid[x][y]; 
                             good=1;
                         }
                     }
                     else if(piece==0){
                         if(abs(mouseX-x)==1&&abs(mouseY-y)==1&&enemy/5!=side){
-                            grid[mouseX][mouseY]=grid[x][y]; 
+                            grid[mouseX][mouseY]=(side&&mouseX==0)?7:(!side&&mouseX==7)?2:grid[x][y]; 
                             good=1;
                         }
                     } 
