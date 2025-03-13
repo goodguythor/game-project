@@ -6,10 +6,11 @@
 // TODO: IMPLEMENT GAME LOGIC
 
 static std::vector<std::vector<int>> grid(8,std::vector<int>(8));
+static std::vector<std::pair<int,int>> graveyard(5);
 static std::vector<int> clickedPiece{-1,-1};
 static const int screenWidth = 720;
 static const int screenHeight = 720;
-static int move = 0;
+static int moveCount = 0;
 static bool runWindow = true;
 static bool clicked = false;
 static bool gameOver = false;
@@ -49,16 +50,6 @@ static void init(){
 }
 
 static void draw(){
-    if(gameOver){
-        Vector2 textPos;
-        Vector2 textSize=MeasureTextEx(GetFontDefault(),"Game Over",30,1);
-        Color color=BLACK;
-        float centerX=360,centerY=60;
-        textPos.x=centerX-(textSize.x/2);
-        textPos.y=centerY-(textSize.y/2);
-        DrawTextEx(GetFontDefault(),"Game Over",textPos,30,1,color);
-        // DrawText("Game Over",0,0,64,BLACK);
-    }
     if(clicked){
         int x=clickedPiece[0],y=clickedPiece[1];
         int piece=grid[x][y]%5;
@@ -195,6 +186,55 @@ static void draw(){
             DrawTextEx(GetFontDefault(),c,textPos,30,1,color);
         }
     }
+    int cntL=0,cntR=0;
+    for(int i=0;i<5;i++){
+        auto [l,r]=graveyard[i];
+        char* c;
+        if(i==0) c="C";
+        else if(i==1) c="I";
+        else if(i==2) c="X";
+        else if(i==3) c="T";
+        else c="U";
+        // std::cout<<grid[i][j]<<'\n';
+        while(l--){
+            float centerX=30+cntL/8*60, centerY=150+60*(cntL%8);
+            Vector2 textPos;
+            Vector2 textSize=MeasureTextEx(GetFontDefault(),c,30,1);
+            textPos.x=centerX-(textSize.x/2);
+            textPos.y=centerY-(textSize.y/2);
+            DrawTextEx(GetFontDefault(),c,textPos,30,1,GRAY);
+            cntL++;
+        }
+        while(r--){
+            float centerX=630+cntR/8*60, centerY=150+60*(cntR%8);
+            Vector2 textPos;
+            Vector2 textSize=MeasureTextEx(GetFontDefault(),c,30,1);
+            textPos.x=centerX-(textSize.x/2);
+            textPos.y=centerY-(textSize.y/2);
+            DrawTextEx(GetFontDefault(),c,textPos,30,1,BLACK);
+            cntR++;
+        }
+    }
+    if(gameOver){
+        Vector2 textPos;
+        Vector2 textSize=MeasureTextEx(GetFontDefault(),"Game Over",30,1);
+        Color color=BLACK;
+        float centerX=360,centerY=60;
+        textPos.x=centerX-(textSize.x/2);
+        textPos.y=centerY-(textSize.y/2);
+        DrawTextEx(GetFontDefault(),"Game Over",textPos,30,1,color);
+        // DrawText("Game Over",0,0,64,BLACK);
+    }
+    else{
+        const char* s=moveCount%2?"Gray's Turn":"Black's Turn";
+        Vector2 textPos;
+        Vector2 textSize=MeasureTextEx(GetFontDefault(),s,30,1);
+        Color color=BLACK;
+        float centerX=360,centerY=60;
+        textPos.x=centerX-(textSize.x/2);
+        textPos.y=centerY-(textSize.y/2);
+        DrawTextEx(GetFontDefault(),s,textPos,30,1,color);
+    }
 }
 
 static void update(){
@@ -215,7 +255,7 @@ static void update(){
                 if(!clicked&&piece!=10){
                     bool side=grid[mouseX][mouseY]/5;
                     // std::cout<<move<<' '<<side<<'\n';
-                    if((move&1)==side){
+                    if((moveCount&1)==side){
                         clicked=1;
                         clickedPiece={mouseX,mouseY};    
                     }
@@ -328,8 +368,13 @@ static void update(){
                         if(enemy%5==4){
                             gameOver=1;
                         }
+                        if(enemy!=10){
+                            enemy%=5;
+                            if(side) graveyard[enemy].second++;
+                            else graveyard[enemy].first++;
+                        }
                         grid[x][y]=10;
-                        move++;
+                        moveCount++;
                     }
                     clicked=0;
                     clickedPiece={-1,-1};
