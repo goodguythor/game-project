@@ -5,22 +5,51 @@
 
 // TODO: IMPLEMENT GAME LOGIC
 
+typedef struct{
+    int timeLeft;
+    int increment;
+} PlayerClock;
+
+static PlayerClock playerBlack, playerGray;
 static std::vector<std::vector<int>> grid(8,std::vector<int>(8));
 static std::vector<std::pair<int,int>> graveyard(5);
 static std::vector<int> clickedPiece{-1,-1};
+static Rectangle musicButtonBounds;
+static float timer;
 static const int screenWidth = 720;
 static const int screenHeight = 720;
 static int moveCount = 0;
 static bool runWindow = true;
 static bool clicked = false;
 static bool gameOver = false;
+static bool musicButtonActive = 0;
 
 static bool validGrid(int x,int y){
     return x>=0&&x<8&&y>=0&&y<8;
 }
 
+static void drawText(const char* text, const Color color, float centerX, float centerY){
+    Vector2 textPos;
+    Vector2 textSize=MeasureTextEx(GetFontDefault(),text,30,1);
+    textPos.x=centerX-(textSize.x/2);
+    textPos.y=centerY-(textSize.y/2);
+    DrawTextEx(GetFontDefault(),text,textPos,30,1,color);
+}
+
 static void init(){
     ClearBackground(RAYWHITE);
+
+    timer = GetTime();
+    playerBlack = {
+        .timeLeft = 5*60,
+        .increment = 3
+    };
+
+    playerGray = {
+        .timeLeft = 5*60,
+        .increment = 3
+    };
+
     for(int i=2;i<6;i++){
         for(int j=0;j<8;j++) grid[i][j]=10;
     }
@@ -160,6 +189,18 @@ static void draw(){
             if(y<7&&grid[x][y+1]/5!=side) DrawRectangle(posX,posY+60,60,60,WHITE);
         }
     }
+    float centerSoundX=360, centerSoundY=660;
+    Vector2 textSoundPos;
+    Vector2 textSoundSize=MeasureTextEx(GetFontDefault(),"Music",30,1);
+    textSoundPos.x=centerSoundX-(textSoundSize.x/2);
+    textSoundPos.y=centerSoundY-(textSoundSize.y/2);
+    DrawTextEx(GetFontDefault(),"Music",textSoundPos,30,1,BLACK);
+    musicButtonBounds={
+        textSoundPos.x,
+        textSoundPos.y,
+        textSoundSize.x,
+        textSoundSize.y
+    };
     // DrawRectangle(120,120,480,480, WHITE);
     for(int i=120;i<=600;i+=60) DrawLine(i,120,i,600,BLACK);
     for(int i=120;i<=600;i+=60) DrawLine(120,i,600,i,BLACK);
@@ -228,19 +269,32 @@ static void draw(){
     }
     else{
         const char* s=moveCount%2?"Gray's Turn":"Black's Turn";
-        Vector2 textPos;
-        Vector2 textSize=MeasureTextEx(GetFontDefault(),s,30,1);
-        Color color=BLACK;
-        float centerX=360,centerY=60;
-        textPos.x=centerX-(textSize.x/2);
-        textPos.y=centerY-(textSize.y/2);
-        DrawTextEx(GetFontDefault(),s,textPos,30,1,color);
+        Color color=moveCount%2?GRAY:BLACK;
+        drawText(TextFormat("Turn %d", moveCount+1), color, 360, 30);
+        drawText(s, color, 360, 90);
+        drawText("Black's Timer", BLACK, 120, 30);
+        drawText("Gray's Timer", GRAY, 600, 30);
+        int minuteBlack=playerBlack.timeLeft/60, secondBlack=playerBlack.timeLeft%60;
+        int minuteGray=playerGray.timeLeft/60, secondGray=playerGray.timeLeft%60;
+        drawText(TextFormat("%02d:%02d", minuteBlack, secondBlack), BLACK, 120, 90);
+        drawText(TextFormat("%02d:%02d", minuteGray, secondGray), GRAY, 600, 90);
+    }
+    if(musicButtonActive){
+        DrawRectangle(120,285,480,150,BLACK);
+        DrawText("Song:", 150, 315, 30, WHITE);
+        DrawText("Volume:", 150, 375, 30, WHITE);
     }
 }
 
 static void update(){
     if(WindowShouldClose()||IsKeyPressed(KEY_ESCAPE)) runWindow = 0;
     Vector2 mousePos = GetMousePosition();
+    if(!musicButtonActive&&!gameOver&&GetTime()-timer>=1){
+        if(moveCount&1) playerGray.timeLeft--;
+        else playerBlack.timeLeft--;
+        if(playerBlack.timeLeft==0||playerGray.timeLeft==0) gameOver=1;
+        timer=GetTime();
+    }
     if(IsMouseButtonPressed(MOUSE_LEFT_BUTTON)){
         if(gameOver){
             init();
@@ -249,10 +303,13 @@ static void update(){
             graveyard=std::vector<std::pair<int,int>>(5);
             moveCount=0;
         }
+        else if(CheckCollisionPointRec(mousePos, musicButtonBounds)){
+            musicButtonActive=!musicButtonActive;
+        }
         else{
             int mouseX=(mousePos.x - 120)/60;
             int mouseY=(mousePos.y - 120)/60;
-            if(validGrid(mouseX,mouseY)){
+            if(!musicButtonActive&&validGrid(mouseX,mouseY)){
                 int piece=grid[mouseX][mouseY];
                 // std::cout<<piece<<'\n';
                 if(!clicked&&piece!=10){
@@ -376,6 +433,8 @@ static void update(){
                             if(side) graveyard[enemy].second++;
                             else graveyard[enemy].first++;
                         }
+                        if(side) playerGray.timeLeft+=playerGray.increment;
+                        else playerBlack.timeLeft+=playerBlack.increment;
                         grid[x][y]=10;
                         moveCount++;
                     }
