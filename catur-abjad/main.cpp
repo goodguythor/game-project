@@ -296,15 +296,15 @@ static void update(){
         timer=GetTime();
     }
     if(IsMouseButtonPressed(MOUSE_LEFT_BUTTON)){
-        if(gameOver){
+        if(CheckCollisionPointRec(mousePos, musicButtonBounds)){
+            musicButtonActive=!musicButtonActive;
+        }
+        else if(!musicButtonActive&&gameOver){
             init();
             clicked=false;
             gameOver=false;
             graveyard=std::vector<std::pair<int,int>>(5);
             moveCount=0;
-        }
-        else if(CheckCollisionPointRec(mousePos, musicButtonBounds)){
-            musicButtonActive=!musicButtonActive;
         }
         else{
             int mouseX=(mousePos.x - 120)/60;
