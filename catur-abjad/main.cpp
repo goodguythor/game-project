@@ -1,6 +1,7 @@
 #include "raylib.h"
 #include <vector>
-#include <string>
+// #include <string>
+// #include <cstdint>
 #include <iostream>
 
 // TODO: IMPLEMENT GAME LOGIC
@@ -17,22 +18,66 @@ enum class GameState{
 };
 
 static PlayerClock playerBlack, playerGray;
-static std::vector<Music> song(2);
+static Music song[2];
+static std::vector<const char*> songList{"Mafia Sholawat", "Ganyang Fufufafa"};
 static std::vector<std::vector<int>> grid(8,std::vector<int>(8));
-static std::vector<std::pair<int,int>> graveyard(5);
-static std::vector<int> clickedPiece{-1,-1};
-static std::vector<char*> songList{"Mafia Sholawat", "Ganyang Fufufafa"};
-static Rectangle musicButtonBounds;
+static std::pair<int,int> graveyard[5] = {{0,0},{0,0},{0,0},{0,0},{0,0}};
+static std::vector<Vector2> pieceSize;
+static Vector2 piecePos[8][8];
 static Rectangle nextButtonsBounds{630,315,30,30};
 static Rectangle prevButtonsBounds{60,315,30,30};
 static Rectangle volumeUpBounds{630,375,30,30};
 static Rectangle volumeDownBounds{60,375,30,30};
+static Rectangle volumeRec[10];
+static Vector2 textSoundSize;
+static Vector2 textSoundPos;
+static Rectangle musicButtonBounds;
+static Vector2 overSize;
+static Vector2 overPos;
+static Vector2 bTurnSize;
+static Vector2 bTurnPos;
+static Vector2 gTurnSize;
+static Vector2 gTurnPos;
+static Vector2 bTimerSize;
+static Vector2 bTimerPos;
+static Vector2 gTimerSize;
+static Vector2 gTimerPos;
+static Vector2 resetSize;
+static Vector2 resetPos;
+static Vector2 startSize;
+static Vector2 startPos;
+static Vector2 menuSize;
+static Vector2 menuPos;
+static Vector2 choiceSize;
+static Vector2 choicePos;
+static Vector2 volumeSize;
+// static Vector2 volumePos;
+static float barLength;
+static Vector2 vUpSize;
+static Vector2 vUpPos;
+static Vector2 vDownSize;
+static Vector2 vDownPos;
+static Vector2 nextSize;
+static Vector2 nextPos;
+static Vector2 prevSize;
+static Vector2 prevPos;
+static Vector2 blackTimerSize, blackTimerPos;
+static Vector2 grayTimerSize, grayTimerPos;
+static Vector2 turnTextSize, turnTextPos;
+static std::vector<std::pair<Vector2,int>> bGravePos(16),gGravePos(16);
+static const char* characters="CIXTU";
+static char blackTimer[6];
+static char grayTimer[6];
+static char turnText[8];
 static float timer, pauseTime = 0;
 static const int screenWidth = 720;
 static const int screenHeight = 720;
+static int cntL=0,cntR=0;
 static int moveCount = 0;
 static int curSong = 0;
 static int masterVolume = 10;
+static int x=-1,y=-1;
+static int posX=-1,posY=-1;
 static GameState state = GameState::GameScreen;
 static bool runWindow = 1;
 static bool clicked = 0;
@@ -45,12 +90,10 @@ static bool validGrid(int x,int y){
     return x>=0&&x<8&&y>=0&&y<8;
 }
 
-static void drawText(const char* text, const Color color, float centerX, float centerY, int fontSize=30){
-    Vector2 textPos;
-    Vector2 textSize=MeasureTextEx(GetFontDefault(),text,fontSize,1);
-    textPos.x=centerX-(textSize.x/2);
-    textPos.y=centerY-(textSize.y/2);
-    DrawTextEx(GetFontDefault(),text,textPos,fontSize,1,color);
+static void changeSong(bool nxt){
+    StopMusicStream(song[curSong]);
+    curSong=(curSong+(nxt?1:-1))%songList.size();
+    PlayMusicStream(song[curSong]);
 }
 
 static void init(){
@@ -66,40 +109,65 @@ static void init(){
         .increment = 3
     };
 
+    sprintf(blackTimer, "%02d:%02d", playerBlack.timeLeft/60, playerBlack.timeLeft%60);
+    blackTimerSize=MeasureTextEx(GetFontDefault(),blackTimer,30,1);
+    blackTimerPos={120-(blackTimerSize.x/2),90-(blackTimerSize.y/2)};
+    sprintf(grayTimer, "%02d:%02d", playerGray.timeLeft/60, playerGray.timeLeft%60);
+    grayTimerSize=MeasureTextEx(GetFontDefault(),grayTimer,30,1);
+    grayTimerPos={600-(grayTimerSize.x/2),90-(grayTimerSize.y/2)};
+    sprintf(turnText, "Turn %d", moveCount+1);
+    turnTextSize=MeasureTextEx(GetFontDefault(),turnText,30,1);
+    turnTextPos={360-(turnTextSize.x/2),30-(turnTextSize.y/2)};
+
     for(int i=2;i<6;i++){
-        for(int j=0;j<8;j++) grid[i][j]=10;
+        for(int j=0;j<8;j++){
+            grid[i][j]=10;
+            piecePos[i][j]={150.f+60*i,150.f+60*j};
+        } 
     }
     for(int i=0;i<2;i++){
         grid[i][0]=0;
         grid[i][7]=0;
+        piecePos[i][0]={150.f+60*i-pieceSize[0].x/2,150.f-pieceSize[0].y/2};
+        piecePos[i][7]={150.f+60*i-pieceSize[0].x/2,150.f+60*7-pieceSize[0].y/2};
     }
     for(int i=6;i<8;i++){
         grid[i][0]=5;
         grid[i][7]=5;
+        piecePos[i][0]={150.f+60*i-pieceSize[0].x/2,150.f-pieceSize[0].y/2};
+        piecePos[i][7]={150.f+60*i-pieceSize[0].x/2,150.f+60*7-pieceSize[0].y/2};
     }
     for(int i=1;i<7;i++){
         grid[1][i]=1;
         grid[6][i]=6;
+        piecePos[1][i]={150.f+60*1-pieceSize[1].x/2,150.f+60*i-pieceSize[1].y/2};
+        piecePos[6][i]={150.f+60*6-pieceSize[1].x/2,150.f+60*i-pieceSize[1].y/2};
     }
     for(int j=1;j<8;j+=4){
         grid[0][j]=2;
         grid[0][j+1]=2;
+        piecePos[0][j]={150.f-pieceSize[2].x/2,150.f+60*j-pieceSize[2].y/2};
+        piecePos[0][j+1]={150.f-pieceSize[2].x/2,150.f+60*(j+1)-pieceSize[2].y/2};
     }
     for(int j=1;j<8;j+=4){
         grid[7][j]=7;
         grid[7][j+1]=7;
+        piecePos[7][j]={150.f+60*7-pieceSize[2].x/2,150.f+60*j-pieceSize[2].y/2};
+        piecePos[7][j+1]={150.f+60*7-pieceSize[2].x/2,150.f+60*(j+1)-pieceSize[2].y/2};
     }
     grid[0][3]=3;
     grid[0][4]=4;
     grid[7][3]=9;
     grid[7][4]=8;
+    piecePos[0][3]={150.f-pieceSize[3].x/2,150.f+60*3-pieceSize[3].y/2};
+    piecePos[0][4]={150.f-pieceSize[4].x/2,150.f+60*4-pieceSize[4].y/2};
+    piecePos[7][3]={150.f+60*7-pieceSize[3].x/2,150.f+60*3-pieceSize[3].y/2};
+    piecePos[7][4]={150.f+60*7-pieceSize[4].x/2,150.f+60*4-pieceSize[4].y/2};
 }
 
 static void draw(){
     if(clicked){
-        int x=clickedPiece[0],y=clickedPiece[1];
         int piece=grid[x][y]%5;
-        int posX=120+x*60,posY=120+y*60;
         bool side=grid[x][y]/5;
         DrawRectangle(posX,posY,60,60,WHITE);
         if(piece==1){
@@ -205,18 +273,7 @@ static void draw(){
             if(y<7&&grid[x][y+1]/5!=side) DrawRectangle(posX,posY+60,60,60,WHITE);
         }
     }
-    float centerSoundX=360, centerSoundY=660;
-    Vector2 textSoundPos;
-    Vector2 textSoundSize=MeasureTextEx(GetFontDefault(),"Music",30,1);
-    textSoundPos.x=centerSoundX-(textSoundSize.x/2);
-    textSoundPos.y=centerSoundY-(textSoundSize.y/2);
     DrawTextEx(GetFontDefault(),"Music",textSoundPos,30,1,BLACK);
-    musicButtonBounds={
-        textSoundPos.x,
-        textSoundPos.y,
-        textSoundSize.x,
-        textSoundSize.y
-    };
     // DrawRectangle(120,120,480,480, WHITE);
     for(int i=120;i<=600;i+=60) DrawLine(i,120,i,600,BLACK);
     for(int i=120;i<=600;i+=60) DrawLine(120,i,600,i,BLACK);
@@ -226,65 +283,39 @@ static void draw(){
     for(int i=0;i<8;i++){
         for(int j=0;j<8;j++){
             if(grid[i][j]==10) continue;
-            Color color=clicked&&clickedPiece==std::vector<int>{i,j}?BLUE:BLACK;
-            if(grid[i][j]/5) color=clicked&&clickedPiece==std::vector<int>{i,j}?GREEN:GRAY;
-            char* c;
-            int piece=grid[i][j]%5;
-            float centerX=150+60*i, centerY=150+60*j;
-            if(piece==0) c="C";
-            else if(piece==1) c="I";
-            else if(piece==2) c="X";
-            else if(piece==3) c="T";
-            else c="U";
+            bool side=grid[i][j]/5;
             // std::cout<<grid[i][j]<<'\n';
-            Vector2 textPos;
-            Vector2 textSize=MeasureTextEx(GetFontDefault(),c,30,1);
-            textPos.x=centerX-(textSize.x/2);
-            textPos.y=centerY-(textSize.y/2);
-            DrawTextEx(GetFontDefault(),c,textPos,30,1,color);
+            char temp[2]={characters[grid[i][j]%5], '\0'};
+            DrawTextEx(GetFontDefault(),temp,piecePos[i][j],30,1,(clicked && x == i && y == j) ? (side ? GREEN : BLUE) : (side ? GRAY : BLACK));
         }
     }
-    int cntL=0,cntR=0;
-    for(int i=0;i<5;i++){
-        auto [l,r]=graveyard[i];
-        char* c;
-        if(i==0) c="C";
-        else if(i==1) c="I";
-        else if(i==2) c="X";
-        else if(i==3) c="T";
-        else c="U";
-        // std::cout<<grid[i][j]<<'\n';
-        while(l--){
-            float centerX=90-cntL/8*60, centerY=150+60*(cntL%8);
-            drawText(c, GRAY, centerX, centerY);
-            cntL++;
-        }
-        while(r--){
-            float centerX=630+cntR/8*60, centerY=150+60*(cntR%8);
-            drawText(c, BLACK, centerX, centerY);
-            cntR++;
-        }
+    // Refactor how to draw the pieces graveyard
+    for(int i=0;i<cntL;i++){
+        char temp[2]={characters[bGravePos[i].second], '\0'};
+        DrawTextEx(GetFontDefault(),temp,bGravePos[i].first,30,1,GRAY);
+    }
+    for(int i=0;i<cntR;i++){
+        char temp[2]={characters[gGravePos[i].second], '\0'};
+        DrawTextEx(GetFontDefault(),temp,gGravePos[i].first,30,1,BLACK);
     }
     if(gameOver){
-        drawText("Game Over", BLACK, 360, 60);
+        DrawTextEx(GetFontDefault(),"Game Over",overPos,30,1,BLACK);
         DrawRectangle(120,285,480,150,BLACK);
-        drawText("Click anywhere to reset the game!", WHITE, 360, 360, 24);
+        DrawTextEx(GetFontDefault(),"Click anywhere to reset the game!",resetPos,24,1,WHITE);
     }
     else{
-        const char* s=moveCount%2?"Gray's Turn":"Black's Turn";
-        Color color=moveCount%2?GRAY:BLACK;
-        drawText(TextFormat("Turn %d", moveCount+1), color, 360, 30);
-        drawText(s, color, 360, 90);
-        drawText("Black's Timer", BLACK, 120, 30);
-        drawText("Gray's Timer", GRAY, 600, 30);
-        int minuteBlack=playerBlack.timeLeft/60, secondBlack=playerBlack.timeLeft%60;
-        int minuteGray=playerGray.timeLeft/60, secondGray=playerGray.timeLeft%60;
-        drawText(TextFormat("%02d:%02d", minuteBlack, secondBlack), BLACK, 120, 90);
-        drawText(TextFormat("%02d:%02d", minuteGray, secondGray), GRAY, 600, 90);
+        bool side=moveCount%2;
+        Color color=side?GRAY:BLACK;
+        DrawTextEx(GetFontDefault(),turnText,turnTextPos,30,1,color);
+        DrawTextEx(GetFontDefault(),side?"Gray's Turn":"Black's Turn",side?bTurnPos:gTurnPos,30,1,color);
+        DrawTextEx(GetFontDefault(),"Black's Timer",bTimerPos,30,1,BLACK);
+        DrawTextEx(GetFontDefault(),"Gray's Timer",gTimerPos,30,1,GRAY);
+        DrawTextEx(GetFontDefault(),blackTimer,blackTimerPos,30,1,BLACK);
+        DrawTextEx(GetFontDefault(),grayTimer,grayTimerPos,30,1,GRAY);
     }
     if(!gameStart){
         DrawRectangle(120,285,480,150,BLACK);
-        drawText("Click anywhere to start the game!", WHITE, 360, 360, 24);
+        DrawTextEx(GetFontDefault(),"Click anywhere to start the game!",startPos,24,1,WHITE);
     }
     if(musicButtonActive){
         DrawRectangle(120,285,480,150,BLACK);
@@ -293,26 +324,22 @@ static void draw(){
         DrawRectangle(60,375,30,30,BLACK);
         DrawRectangle(630,375,30,30,BLACK);
         DrawText(TextFormat("Song: %s", songList[curSong]), 150, 315, 30, WHITE);
-        Vector2 textSize=MeasureTextEx(GetFontDefault(), "Volume: ", 30, 1);
-        DrawText("Volume:", 150, 405-textSize.y, 30, WHITE);
-        int barLength = (420-textSize.x)/11;
-        for(int i=1;i<=masterVolume;i++){
-            DrawRectangle(150+textSize.x+i*barLength, 405-textSize.y, barLength, textSize.y, WHITE);
-        }
-        drawText(">", WHITE, 645, 330);
-        drawText("<", WHITE, 75, 330);
-        drawText("-", WHITE, 75, 390);
-        drawText("+", WHITE, 645, 390);
+        DrawText("Volume:", 150, 405-volumeSize.y, 30, WHITE);
+        for(int i=0;i<masterVolume;i++) DrawRectangleRec(volumeRec[i],WHITE);
+        DrawTextEx(GetFontDefault(),">",nextPos,30,1,WHITE);
+        DrawTextEx(GetFontDefault(),"<",prevPos,30,1,WHITE);
+        DrawTextEx(GetFontDefault(),"-",vDownPos,30,1,WHITE);
+        DrawTextEx(GetFontDefault(),"+",vUpPos,30,1,WHITE);
     }
     if(menuBoxActive){
         DrawRectangle(120,285,480,150,BLACK);
-        drawText("Would you like to go back to main menu?", WHITE, 360, 330, 24);
-        drawText("YES (Enter) or NO (ESC)", WHITE, 360, 390);
+        DrawTextEx(GetFontDefault(),"Would you like to go back to main menu?",menuPos,24,1,WHITE);
+        DrawTextEx(GetFontDefault(),"YES (Enter) or NO (ESC)",choicePos,30,1,WHITE);
     }
 }
 
 static void update(){
-    std::cout<<GetMasterVolume()<<'\n';
+    // std::cout<<GetMasterVolume()<<'\n';
     UpdateMusicStream(song[curSong]);
     if(WindowShouldClose()) runWindow = 0;
     if(!musicButtonActive&&IsKeyPressed(KEY_ESCAPE)){
@@ -320,10 +347,19 @@ static void update(){
         if(menuBoxActive) pauseTime=GetTime();
         else pauseTime=GetTime()-pauseTime;
     }
-    Vector2 mousePos = GetMousePosition();
     if(gameStart&&!menuBoxActive&&!musicButtonActive&&!gameOver&&GetTime()-pauseTime-timer>=1){
-        if(moveCount&1) playerGray.timeLeft--;
-        else playerBlack.timeLeft--;
+        if(moveCount&1){
+            playerGray.timeLeft--;
+            sprintf(grayTimer, "%02d:%02d", playerGray.timeLeft/60, playerGray.timeLeft%60);
+            grayTimerSize=MeasureTextEx(GetFontDefault(),grayTimer,30,1);
+            grayTimerPos={600-(grayTimerSize.x/2),90-(grayTimerSize.y/2)};
+        }
+        else{
+            playerBlack.timeLeft--;
+            sprintf(blackTimer, "%02d:%02d", playerBlack.timeLeft/60, playerBlack.timeLeft%60);
+            blackTimerSize=MeasureTextEx(GetFontDefault(),blackTimer,30,1);
+            blackTimerPos={120-(blackTimerSize.x/2),90-(blackTimerSize.y/2)};
+        }
         if(playerBlack.timeLeft==0||playerGray.timeLeft==0) gameOver=1;
         timer=GetTime();
         pauseTime=0;
@@ -331,16 +367,13 @@ static void update(){
     if(menuBoxActive&&IsKeyPressed(KEY_ENTER)){
         state=GameState::MenuScreen;
     }
+    Vector2 mousePos = GetMousePosition();
     if(musicButtonActive&&IsMouseButtonDown(MOUSE_LEFT_BUTTON)){
         if(CheckCollisionPointRec(mousePos, nextButtonsBounds)){
-            StopMusicStream(song[curSong]);
-            curSong=(curSong+1)%songList.size();
-            PlayMusicStream(song[curSong]);
+            changeSong(0);
         }
         if(CheckCollisionPointRec(mousePos, prevButtonsBounds)){
-            StopMusicStream(song[curSong]);
-            curSong=(curSong-1)%songList.size();
-            PlayMusicStream(song[curSong]);
+            changeSong(0);
         }
         if(CheckCollisionPointRec(mousePos, volumeUpBounds)){
             if(masterVolume<10) masterVolume++;
@@ -357,68 +390,53 @@ static void update(){
             timer=GetTime();
         }
         else if(!menuBoxActive&&!musicButtonActive&&gameOver){
-            init();
             clicked=0;
             gameOver=0;
             gameStart=0;    
-            graveyard=std::vector<std::pair<int,int>>(5);
+            for(int i=0;i<5;i++) graveyard[i]={0,0};
             moveCount=0;
+            init();
         }
         else if(!menuBoxActive&&CheckCollisionPointRec(mousePos, musicButtonBounds)){
             musicButtonActive=!musicButtonActive;
             if(musicButtonActive) pauseTime=GetTime();
             else pauseTime=GetTime()-pauseTime;
         }
-        // else if(musicButtonActive){
-        //     if(CheckCollisionPointRec(mousePos, nextButtonsBounds)){
-        //         curSong=(curSong+1)%songList.size();
-        //     }
-        //     if(CheckCollisionPointRec(mousePos, prevButtonsBounds)){
-        //         curSong=(curSong-1)%songList.size();
-        //     }
-        //     if(CheckCollisionPointRec(mousePos, volumeUpBounds)){
-        //         if(masterVolume<10) masterVolume++;
-        //         SetMasterVolume(masterVolume);
-        //     }
-        //     if(CheckCollisionPointRec(mousePos, volumeDownBounds)){
-        //         if(masterVolume>0) masterVolume--;
-        //         SetMasterVolume(masterVolume);
-        //     }
-        // }
         else if(!musicButtonActive&&!menuBoxActive){
             int mouseX=(mousePos.x - 120)/60;
             int mouseY=(mousePos.y - 120)/60;
             if(validGrid(mouseX,mouseY)){
-                int piece=grid[mouseX][mouseY];
+                int enemy=grid[mouseX][mouseY];
                 // std::cout<<piece<<'\n';
-                if(!clicked&&piece!=10){
-                    bool side=grid[mouseX][mouseY]/5;
+                if(!clicked&&enemy!=10){
                     // std::cout<<move<<' '<<side<<'\n';
-                    if((moveCount&1)==side){
+                    if((moveCount&1)==grid[mouseX][mouseY]/5){
                         clicked=1;
-                        clickedPiece={mouseX,mouseY};    
+                        x=mouseX;
+                        y=mouseY;    
+                        posX=120+x*60;
+                        posY=120+y*60;
                     }
                 }
                 else if(clicked){
-                    int x=clickedPiece[0],y=clickedPiece[1];
-                    int piece=grid[x][y]%5,enemy=grid[mouseX][mouseY];;
-                    bool side=grid[x][y]/5;
+                    int piece=grid[x][y]%5;
+                    int difX=abs(mouseX-x),difY=abs(mouseY-y);
+                    bool side=grid[x][y]/5,enemySide=enemy==10?!side:enemy/5;
                     bool good=0;
                     if(piece==1){
-                        if(abs(mouseX-x)+abs(mouseY-y)==1&&enemy/5!=side){
+                        if(difX+difY==1&&enemySide!=side){
                             grid[mouseX][mouseY]=(side&&mouseX==0)?8:(!side&&mouseX==7)?3:grid[x][y]; 
                             good=1;
                         }
                     }
                     else if(piece==0){
-                        if(abs(mouseX-x)==1&&abs(mouseY-y)==1&&enemy/5!=side){
+                        if(difX==1&&difY==1&&enemySide!=side){
                             grid[mouseX][mouseY]=(side&&mouseX==0)?7:(!side&&mouseX==7)?2:grid[x][y]; 
                             good=1;
                         }
                     } 
                     else if(piece==2){
-                        int difX=abs(mouseX-x),difY=abs(mouseY-y);
-                        if(difX==difY&&enemy/5!=side){
+                        if(difX==difY&&enemySide!=side){
                             bool check=1;
                             for(int i=1;i<difX;i++){
                                 if(mouseX>x){
@@ -457,9 +475,8 @@ static void update(){
                         }
                     } 
                     else if(piece==3){
-                        int difX=abs(mouseX-x),difY=abs(mouseY-y);
                         int mx=std::max(difX,difY),mn=std::min(difX,difY);
-                        if(mx>0&&mn==0&&enemy/5!=side){
+                        if(mx>0&&mn==0&&enemySide!=side){
                             bool check=1;
                             for(int i=1;i<mx;i++){
                                 if(mx==difX){
@@ -498,7 +515,7 @@ static void update(){
                         }
                     }
                     else{
-                        if((abs(mouseX-x)<=1)&&(abs(mouseY-y)<=1)&&grid[mouseX][mouseY]/5!=side){
+                        if(difX<=1&&difY<=1&&enemySide!=side){
                             grid[mouseX][mouseY]=grid[x][y]; 
                             good=1;
                         }
@@ -509,16 +526,52 @@ static void update(){
                         }
                         if(enemy!=10){
                             enemy%=5;
-                            if(side) graveyard[enemy].second++;
-                            else graveyard[enemy].first++;
+                            if(side){
+                                graveyard[enemy].second++;
+                                cntR++;
+                            }
+                            else{
+                                graveyard[enemy].first++;
+                                cntL++;
+                            }
+                            int cntLL=0,cntRR=0;
+                            for(int i=0;i<5;i++){
+                                char temp[2]={characters[i], '\0'};
+                                for(int l=0;l<graveyard[i].first;l++){
+                                    bGravePos[cntLL]={{90-cntLL/8*60-(pieceSize[i].x/2),150.f+60*(cntLL%8)-(pieceSize[i].y/2)},i};
+                                    cntLL++;
+                                }
+                                for(int r=0;r<graveyard[i].second;r++){
+                                    gGravePos[cntRR]={{630+cntRR/8*60-(pieceSize[i].x/2),150.f+60*(cntRR%8)-(pieceSize[i].y/2)},i};
+                                    cntRR++;
+                                }
+                            }
                         }
-                        if(side) playerGray.timeLeft+=playerGray.increment;
-                        else playerBlack.timeLeft+=playerBlack.increment;
+                        if(side){
+                            playerGray.timeLeft+=playerGray.increment;
+                            sprintf(grayTimer, "%02d:%02d", playerGray.timeLeft/60, playerGray.timeLeft%60);
+                            grayTimerSize=MeasureTextEx(GetFontDefault(),grayTimer,30,1);
+                            grayTimerPos={600-(grayTimerSize.x/2),90-(grayTimerSize.y/2)};
+                        } 
+                        else{
+                            playerBlack.timeLeft+=playerBlack.increment;
+                            sprintf(blackTimer, "%02d:%02d", playerBlack.timeLeft/60, playerBlack.timeLeft%60);
+                            blackTimerSize=MeasureTextEx(GetFontDefault(),blackTimer,30,1);
+                            blackTimerPos={120-(blackTimerSize.x/2),90-(blackTimerSize.y/2)};
+                        } 
                         grid[x][y]=10;
+                        piecePos[x][y]={150.f+60*x,150.f+60*y};
+                        piecePos[mouseX][mouseY]={150.f+60*mouseX-pieceSize[grid[mouseX][mouseY]%5].x/2,150.f+60*mouseY-pieceSize[grid[mouseX][mouseY]%5].y/2};
                         moveCount++;
+                        sprintf(turnText, "Turn %d", moveCount+1);
+                        turnTextSize=MeasureTextEx(GetFontDefault(),turnText,30,1);
+                        turnTextPos={360-(turnTextSize.x/2),30-(turnTextSize.y/2)};
                     }
                     clicked=0;
-                    clickedPiece={-1,-1};
+                    x=-1;
+                    y=-1;
+                    posX=-1;
+                    posY=-1;
                 }
             }
         }
@@ -548,7 +601,54 @@ int main(){
     SetAudioStreamBufferSizeDefault(9216);
     SetExitKey(KEY_NULL);
     SetTargetFPS(60);
+    pieceSize={
+        MeasureTextEx(GetFontDefault(),"C",30,1),
+        MeasureTextEx(GetFontDefault(),"I",30,1),
+        MeasureTextEx(GetFontDefault(),"X",30,1),
+        MeasureTextEx(GetFontDefault(),"T",30,1),
+        MeasureTextEx(GetFontDefault(),"U",30,1)
+    };
     init();
+    textSoundSize=MeasureTextEx(GetFontDefault(),"Music",30,1);
+    textSoundPos={360-(textSoundSize.x/2),660-(textSoundSize.y/2)};
+    musicButtonBounds={
+        textSoundPos.x,
+        textSoundPos.y,
+        textSoundSize.x,
+        textSoundSize.y
+    };
+    overSize=MeasureTextEx(GetFontDefault(),"Game Over",30,1);
+    overPos={360-(overSize.x/2),60-(overSize.y/2)};
+    bTurnSize=MeasureTextEx(GetFontDefault(),"Black's Turn",30,1);
+    bTurnPos={360-(bTurnSize.x/2),90-(bTurnSize.y/2)};
+    gTurnSize=MeasureTextEx(GetFontDefault(),"Gray's Turn",30,1);
+    gTurnPos={360-(gTurnSize.x/2),90-(gTurnSize.y/2)};
+    bTimerSize=MeasureTextEx(GetFontDefault(),"Black's Timer",30,1);
+    bTimerPos={120-(bTimerSize.x/2),30-(bTimerSize.y/2)};
+    gTimerSize=MeasureTextEx(GetFontDefault(),"Gray's Timer",30,1);
+    gTimerPos={600-(gTimerSize.x/2),30-(gTimerSize.y/2)};
+    resetSize=MeasureTextEx(GetFontDefault(),"Click anywhere to reset the game!",24,1);
+    resetPos={360-(resetSize.x/2),360-(resetSize.y/2)};
+    startSize=MeasureTextEx(GetFontDefault(),"Click anywhere to start the game!",24,1);
+    startPos={360-(startSize.x/2),360-(startSize.y/2)};
+    menuSize=MeasureTextEx(GetFontDefault(),"Would you like to go back to main menu?",24,1);
+    menuPos={360-(menuSize.x/2),330-(menuSize.y/2)};
+    choiceSize=MeasureTextEx(GetFontDefault(),"YES (Enter) or NO (ESC)",30,1);
+    choicePos={360-(choiceSize.x/2),390-(choiceSize.y/2)};
+    volumeSize=MeasureTextEx(GetFontDefault(), "Volume:", 30, 1);
+    // volumePos={405-volumeSize.y, 30};
+    barLength = (420-volumeSize.x)/11;
+    vUpSize=MeasureTextEx(GetFontDefault(), "+", 30, 1);
+    vUpPos={645-(vUpSize.x/2),390-(vUpSize.y/2)};
+    vDownSize=MeasureTextEx(GetFontDefault(), "-", 30, 1);
+    vDownPos={75-(vDownSize.x/2),390-(vDownSize.y/2)};
+    nextSize=MeasureTextEx(GetFontDefault(), ">", 30, 1);
+    nextPos={645-(nextSize.x/2),330-(nextSize.y/2)};
+    prevSize=MeasureTextEx(GetFontDefault(), "<", 30, 1);
+    prevPos={75-(prevSize.x/2),330-(prevSize.y/2)};
+    for(int i=1;i<=10;i++){
+        volumeRec[i-1]={150+volumeSize.x+i*barLength, 405-volumeSize.y, barLength, volumeSize.y};  
+    }
     song[0]=LoadMusicStream("assets/music/mafiaslwt.mp3");
     song[1]=LoadMusicStream("assets/music/ganyangffff.mp3");
     PlayMusicStream(song[curSong]);
