@@ -538,7 +538,6 @@ static inline void update(){
                             }
                             int cntLL=0,cntRR=0;
                             for(int i=0;i<5;i++){
-                                char temp[2]={characters[i], '\0'};
                                 for(int l=0;l<graveyard[i].first;l++){
                                     bGravePos[cntLL]={{90-cntLL/8*60-(pieceSize[i].x/2),150.f+60*(cntLL%8)-(pieceSize[i].y/2)},i};
                                     cntLL++;
