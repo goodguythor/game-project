@@ -86,7 +86,7 @@ static bool gameStart = 0;
 static bool musicButtonActive = 0;
 static bool menuBoxActive = 0;
 
-static bool validGrid(int x,int y){
+static inline bool validGrid(int x,int y){
     return x>=0&&x<8&&y>=0&&y<8;
 }
 
@@ -165,7 +165,7 @@ static void init(){
     piecePos[7][4]={150.f+60*7-pieceSize[4].x/2,150.f+60*4-pieceSize[4].y/2};
 }
 
-static void draw(){
+static inline void draw(){
     if(clicked){
         int piece=grid[x][y]%5;
         bool side=grid[x][y]/5;
@@ -338,7 +338,7 @@ static void draw(){
     }
 }
 
-static void update(){
+static inline void update(){
     // std::cout<<GetMasterVolume()<<'\n';
     UpdateMusicStream(song[curSong]);
     if(WindowShouldClose()) runWindow = 0;
@@ -392,7 +392,9 @@ static void update(){
         else if(!menuBoxActive&&!musicButtonActive&&gameOver){
             clicked=0;
             gameOver=0;
-            gameStart=0;    
+            gameStart=0;   
+            cntL=0;
+            cntR=0; 
             for(int i=0;i<5;i++) graveyard[i]={0,0};
             moveCount=0;
             init();
