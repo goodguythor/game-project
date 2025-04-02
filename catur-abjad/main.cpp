@@ -167,6 +167,7 @@ static void init(){
 }
 
 static inline void draw(){
+    DrawFPS(600,600);
     if(clicked){
         int piece=grid[x][y]%5;
         bool side=grid[x][y]/5;
@@ -649,7 +650,7 @@ int main(){
     InitAudioDevice();
     SetAudioStreamBufferSizeDefault(9216);
     SetExitKey(KEY_NULL);
-    SetTargetFPS(60);
+    // SetTargetFPS(30);
     pieceSize={
         MeasureTextEx(GetFontDefault(),"C",30,1),
         MeasureTextEx(GetFontDefault(),"I",30,1),
