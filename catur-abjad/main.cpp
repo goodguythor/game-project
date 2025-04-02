@@ -69,7 +69,7 @@ static const char* characters="CIXTU";
 static char blackTimer[6];
 static char grayTimer[6];
 static char turnText[8];
-static float timer, pauseTime = 0;
+static float timer, holdTimer, pauseTime = 0;
 static const int screenWidth = 720;
 static const int screenHeight = 720;
 static int cntL=0,cntR=0;
@@ -85,6 +85,7 @@ static bool gameOver = 0;
 static bool gameStart = 0;
 static bool musicButtonActive = 0;
 static bool menuBoxActive = 0;
+static bool isHold=0;
 
 static inline bool validGrid(int x,int y){
     return x>=0&&x<8&&y>=0&&y<8;
@@ -368,20 +369,67 @@ static inline void update(){
         state=GameState::MenuScreen;
     }
     Vector2 mousePos = GetMousePosition();
-    if(musicButtonActive&&IsMouseButtonDown(MOUSE_LEFT_BUTTON)){
+    if(isHold&&IsMouseButtonUp(MOUSE_LEFT_BUTTON)) isHold=0;
+    if(musicButtonActive){
         if(CheckCollisionPointRec(mousePos, nextButtonsBounds)){
-            changeSong(0);
+            if(IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) changeSong(1);
+            else if(IsMouseButtonDown(MOUSE_LEFT_BUTTON)){
+                if(!isHold){
+                    isHold=1;
+                    holdTimer=GetTime();
+                }
+                else if(GetTime()-holdTimer>=0.2){
+                    holdTimer=GetTime();
+                    changeSong(1);
+                } 
+            }
         }
         if(CheckCollisionPointRec(mousePos, prevButtonsBounds)){
-            changeSong(0);
+            if(IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) changeSong(0);
+            else if(IsMouseButtonDown(MOUSE_LEFT_BUTTON)){
+                if(!isHold){
+                    isHold=1;
+                    holdTimer=GetTime();
+                }
+                else if(GetTime()-holdTimer>=0.2){
+                    holdTimer=GetTime();
+                    changeSong(0);
+                } 
+            }
         }
         if(CheckCollisionPointRec(mousePos, volumeUpBounds)){
-            if(masterVolume<10) masterVolume++;
-            SetMasterVolume(masterVolume/10.f);
+            if(masterVolume<10&&IsMouseButtonPressed(MOUSE_LEFT_BUTTON)){
+                masterVolume++;
+                SetMasterVolume(masterVolume/10.f);
+            }
+            else if(masterVolume<10&&IsMouseButtonDown(MOUSE_LEFT_BUTTON)){
+                if(!isHold){
+                    isHold=1;
+                    holdTimer=GetTime();
+                }
+                else if(GetTime()-holdTimer>=0.2){
+                    holdTimer=GetTime();
+                    masterVolume++;
+                    SetMasterVolume(masterVolume/10.f);
+                }
+            }
         }
         if(CheckCollisionPointRec(mousePos, volumeDownBounds)){
-            if(masterVolume>0) masterVolume--;
-            SetMasterVolume(masterVolume/10.f);
+            if(masterVolume>0&&IsMouseButtonPressed(MOUSE_LEFT_BUTTON)){
+                masterVolume--;
+                SetMasterVolume(masterVolume/10.f);
+            }
+            else if(masterVolume>0&&IsMouseButtonDown(MOUSE_LEFT_BUTTON)){
+                if(!isHold){
+                    isHold=1;
+                    holdTimer=GetTime();
+                }
+                else if(GetTime()-holdTimer>=0.2){
+                    holdTimer=GetTime();
+                    masterVolume--;
+                    SetMasterVolume(masterVolume/10.f);
+                }
+            }
         }
     }
     if(IsMouseButtonPressed(MOUSE_LEFT_BUTTON)){
