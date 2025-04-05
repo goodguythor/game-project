@@ -122,6 +122,7 @@ static inline void changeSong(bool nxt){
 
 static inline void clearGame(){
     clicked=0;
+    pauseTime=0;
     gameOver=0;
     gameStart=0;   
     cntL=0;

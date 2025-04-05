@@ -1,3 +1,3 @@
 main:
-	g++ main.cpp -Iinclude -Llib -lraylib -lGL -lm -lpthread -ldl -lrt -lX11 -o ula-gendeng
+	g++ main.cpp -g -O0 -fsanitize=address -march=native -flto -Iinclude -Llib -lraylib -lGL -lm -lpthread -ldl -lrt -lX11 -o ula-gendeng
 	./ula-gendeng

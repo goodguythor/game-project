@@ -331,7 +331,7 @@ int main(){
     // init window
     InitWindow(screenWidth, screenHeight, "Ula Gendeng");
     SetExitKey(KEY_NULL);
-    SetTargetFPS(60);
+    SetTargetFPS(15);
     init();
     while(runWindow){
         BeginDrawing();
