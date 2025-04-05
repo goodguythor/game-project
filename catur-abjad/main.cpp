@@ -3,8 +3,12 @@
 // #include <string>
 // #include <cstdint>
 #include <iostream>
+#include <filesystem>
+#include <cstring>
 
 // TODO: IMPLEMENT GAME LOGIC
+
+#define MAX_SONG 32
 
 typedef struct{
     int timeLeft;
@@ -18,8 +22,8 @@ enum class GameState{
 };
 
 static PlayerClock playerBlack, playerGray;
-static Music song[2];
-static std::vector<const char*> songList{"Mafia Sholawat", "Ganyang Fufufafa"};
+static std::vector<Music> song;
+static std::vector<const char*> songList;
 static std::vector<std::vector<int>> grid(8,std::vector<int>(8));
 static std::pair<int,int> graveyard[5] = {{0,0},{0,0},{0,0},{0,0},{0,0}};
 static std::vector<Vector2> pieceSize;
@@ -29,6 +33,11 @@ static Rectangle prevButtonsBounds{60,315,30,30};
 static Rectangle volumeUpBounds{630,375,30,30};
 static Rectangle volumeDownBounds{60,375,30,30};
 static Rectangle volumeRec[10];
+static Rectangle blackTitleBox, grayTitleBox;
+static Rectangle playGameBox;
+static Rectangle menuBox;
+static Rectangle gameTimeIncBox,gameTimeDecBox;
+static Rectangle incTimeIncBox,incTimeDecBox;
 static Vector2 textSoundSize;
 static Vector2 textSoundPos;
 static Rectangle musicButtonBounds;
@@ -64,12 +73,24 @@ static Vector2 prevPos;
 static Vector2 blackTimerSize, blackTimerPos;
 static Vector2 grayTimerSize, grayTimerPos;
 static Vector2 turnTextSize, turnTextPos;
+static Vector2 titleSize, titlePos;
+static Vector2 enterSize, enterPos;
+static Vector2 blackTitleSize, blackTitlePos;
+static Vector2 grayTitleSize, grayTitlePos;
+static Vector2 titleMenuSize, titleMenuPos;
+static Vector2 timerMenuSize, timerMenuPos;
+static Vector2 incrementSize, incrementPos;
+static Vector2 playGameSize, playGamePos;
+static Vector2 gameTimePos, incTimePos;
+static Vector2 gameTimeSize, incTimeSize;
+static Vector2 gameTimeIncPos,gameTimeDecPos;
+static Vector2 incTimeIncPos,incTimeDecPos;
 static std::vector<std::pair<Vector2,int>> bGravePos(16),gGravePos(16);
 static const char* characters="CIXTU";
 static char blackTimer[6];
 static char grayTimer[6];
 static char turnText[8];
-static float timer, holdTimer, pauseTime = 0;
+static float timer, holdTimer, blinkTimer=0, pauseTime = 0;
 static const int screenWidth = 720;
 static const int screenHeight = 720;
 static int cntL=0,cntR=0;
@@ -78,7 +99,8 @@ static int curSong = 0;
 static int masterVolume = 10;
 static int x=-1,y=-1;
 static int posX=-1,posY=-1;
-static GameState state = GameState::GameScreen;
+static int gameTime=5,incTime=3;
+static GameState state = GameState::StartScreen;
 static bool runWindow = 1;
 static bool clicked = 0;
 static bool gameOver = 0;
@@ -86,28 +108,119 @@ static bool gameStart = 0;
 static bool musicButtonActive = 0;
 static bool menuBoxActive = 0;
 static bool isHold=0;
+static bool isBlinking=0;
 
 static inline bool validGrid(int x,int y){
     return x>=0&&x<8&&y>=0&&y<8;
 }
 
-static void changeSong(bool nxt){
+static inline void changeSong(bool nxt){
     StopMusicStream(song[curSong]);
     curSong=(curSong+(nxt?1:-1))%songList.size();
     PlayMusicStream(song[curSong]);
 }
 
+static inline void clearGame(){
+    clicked=0;
+    gameOver=0;
+    gameStart=0;   
+    cntL=0;
+    cntR=0; 
+    for(int i=0;i<5;i++) graveyard[i]={0,0};
+    moveCount=0;
+}
+
+static inline void handleMusicBox(const Vector2 &mousePos){
+    if(CheckCollisionPointRec(mousePos, nextButtonsBounds)){
+        if(IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) changeSong(1);
+        else if(IsMouseButtonDown(MOUSE_LEFT_BUTTON)){
+            if(!isHold){
+                isHold=1;
+                holdTimer=GetTime();
+            }
+            else if(GetTime()-holdTimer>=0.2){
+                holdTimer=GetTime();
+                changeSong(1);
+            } 
+        }
+    }
+    if(CheckCollisionPointRec(mousePos, prevButtonsBounds)){
+        if(IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) changeSong(0);
+        else if(IsMouseButtonDown(MOUSE_LEFT_BUTTON)){
+            if(!isHold){
+                isHold=1;
+                holdTimer=GetTime();
+            }
+            else if(GetTime()-holdTimer>=0.2){
+                holdTimer=GetTime();
+                changeSong(0);
+            } 
+        }
+    }
+    if(CheckCollisionPointRec(mousePos, volumeUpBounds)){
+        if(masterVolume<10&&IsMouseButtonPressed(MOUSE_LEFT_BUTTON)){
+            masterVolume++;
+            SetMasterVolume(masterVolume/10.f);
+        }
+        else if(masterVolume<10&&IsMouseButtonDown(MOUSE_LEFT_BUTTON)){
+            if(!isHold){
+                isHold=1;
+                holdTimer=GetTime();
+            }
+            else if(GetTime()-holdTimer>=0.2){
+                holdTimer=GetTime();
+                masterVolume++;
+                SetMasterVolume(masterVolume/10.f);
+            }
+        }
+    }
+    if(CheckCollisionPointRec(mousePos, volumeDownBounds)){
+        if(masterVolume>0&&IsMouseButtonPressed(MOUSE_LEFT_BUTTON)){
+            masterVolume--;
+            SetMasterVolume(masterVolume/10.f);
+        }
+        else if(masterVolume>0&&IsMouseButtonDown(MOUSE_LEFT_BUTTON)){
+            if(!isHold){
+                isHold=1;
+                holdTimer=GetTime();
+            }
+            else if(GetTime()-holdTimer>=0.2){
+                holdTimer=GetTime();
+                masterVolume--;
+                SetMasterVolume(masterVolume/10.f);
+            }
+        }
+    }
+}
+
+static void drawMusicBox(){
+    DrawTextEx(GetFontDefault(),"Music",textSoundPos,30,1,BLACK);
+    if(musicButtonActive){
+        DrawRectangle(120,285,480,150,BLACK);
+        DrawRectangle(60,315,30,30,BLACK);
+        DrawRectangle(630,315,30,30,BLACK);
+        DrawRectangle(60,375,30,30,BLACK);
+        DrawRectangle(630,375,30,30,BLACK);
+        DrawText(TextFormat("Song: %s", songList[curSong]), 150, 315, 30, WHITE);
+        DrawText("Volume:", 150, 405-volumeSize.y, 30, WHITE);
+        for(int i=0;i<masterVolume;i++) DrawRectangleRec(volumeRec[i],WHITE);
+        DrawTextEx(GetFontDefault(),">",nextPos,30,1,WHITE);
+        DrawTextEx(GetFontDefault(),"<",prevPos,30,1,WHITE);
+        DrawTextEx(GetFontDefault(),"-",vDownPos,30,1,WHITE);
+        DrawTextEx(GetFontDefault(),"+",vUpPos,30,1,WHITE);
+    }
+}
+
 static void init(){
     ClearBackground(RAYWHITE);
-    SetMasterVolume(masterVolume/10.f);
     playerBlack = {
-        .timeLeft = 5*60,
-        .increment = 3
+        .timeLeft = gameTime*60,
+        .increment = incTime
     };
 
     playerGray = {
-        .timeLeft = 5*60,
-        .increment = 3
+        .timeLeft = gameTime*60,
+        .increment = incTime
     };
 
     sprintf(blackTimer, "%02d:%02d", playerBlack.timeLeft/60, playerBlack.timeLeft%60);
@@ -167,7 +280,6 @@ static void init(){
 }
 
 static inline void draw(){
-    DrawFPS(600,600);
     if(clicked){
         int piece=grid[x][y]%5;
         bool side=grid[x][y]/5;
@@ -319,20 +431,7 @@ static inline void draw(){
         DrawRectangle(120,285,480,150,BLACK);
         DrawTextEx(GetFontDefault(),"Click anywhere to start the game!",startPos,24,1,WHITE);
     }
-    if(musicButtonActive){
-        DrawRectangle(120,285,480,150,BLACK);
-        DrawRectangle(60,315,30,30,BLACK);
-        DrawRectangle(630,315,30,30,BLACK);
-        DrawRectangle(60,375,30,30,BLACK);
-        DrawRectangle(630,375,30,30,BLACK);
-        DrawText(TextFormat("Song: %s", songList[curSong]), 150, 315, 30, WHITE);
-        DrawText("Volume:", 150, 405-volumeSize.y, 30, WHITE);
-        for(int i=0;i<masterVolume;i++) DrawRectangleRec(volumeRec[i],WHITE);
-        DrawTextEx(GetFontDefault(),">",nextPos,30,1,WHITE);
-        DrawTextEx(GetFontDefault(),"<",prevPos,30,1,WHITE);
-        DrawTextEx(GetFontDefault(),"-",vDownPos,30,1,WHITE);
-        DrawTextEx(GetFontDefault(),"+",vUpPos,30,1,WHITE);
-    }
+    if(musicButtonActive) drawMusicBox();
     if(menuBoxActive){
         DrawRectangle(120,285,480,150,BLACK);
         DrawTextEx(GetFontDefault(),"Would you like to go back to main menu?",menuPos,24,1,WHITE);
@@ -342,7 +441,6 @@ static inline void draw(){
 
 static inline void update(){
     // std::cout<<GetMasterVolume()<<'\n';
-    UpdateMusicStream(song[curSong]);
     if(WindowShouldClose()) runWindow = 0;
     if(!musicButtonActive&&IsKeyPressed(KEY_ESCAPE)){
         menuBoxActive=!menuBoxActive;
@@ -367,85 +465,20 @@ static inline void update(){
         pauseTime=0;
     }
     if(menuBoxActive&&IsKeyPressed(KEY_ENTER)){
+        menuBoxActive=0;
+        clearGame();
         state=GameState::MenuScreen;
     }
     Vector2 mousePos = GetMousePosition();
+    if(musicButtonActive) handleMusicBox(mousePos);
     if(isHold&&IsMouseButtonUp(MOUSE_LEFT_BUTTON)) isHold=0;
-    if(musicButtonActive){
-        if(CheckCollisionPointRec(mousePos, nextButtonsBounds)){
-            if(IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) changeSong(1);
-            else if(IsMouseButtonDown(MOUSE_LEFT_BUTTON)){
-                if(!isHold){
-                    isHold=1;
-                    holdTimer=GetTime();
-                }
-                else if(GetTime()-holdTimer>=0.2){
-                    holdTimer=GetTime();
-                    changeSong(1);
-                } 
-            }
-        }
-        if(CheckCollisionPointRec(mousePos, prevButtonsBounds)){
-            if(IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) changeSong(0);
-            else if(IsMouseButtonDown(MOUSE_LEFT_BUTTON)){
-                if(!isHold){
-                    isHold=1;
-                    holdTimer=GetTime();
-                }
-                else if(GetTime()-holdTimer>=0.2){
-                    holdTimer=GetTime();
-                    changeSong(0);
-                } 
-            }
-        }
-        if(CheckCollisionPointRec(mousePos, volumeUpBounds)){
-            if(masterVolume<10&&IsMouseButtonPressed(MOUSE_LEFT_BUTTON)){
-                masterVolume++;
-                SetMasterVolume(masterVolume/10.f);
-            }
-            else if(masterVolume<10&&IsMouseButtonDown(MOUSE_LEFT_BUTTON)){
-                if(!isHold){
-                    isHold=1;
-                    holdTimer=GetTime();
-                }
-                else if(GetTime()-holdTimer>=0.2){
-                    holdTimer=GetTime();
-                    masterVolume++;
-                    SetMasterVolume(masterVolume/10.f);
-                }
-            }
-        }
-        if(CheckCollisionPointRec(mousePos, volumeDownBounds)){
-            if(masterVolume>0&&IsMouseButtonPressed(MOUSE_LEFT_BUTTON)){
-                masterVolume--;
-                SetMasterVolume(masterVolume/10.f);
-            }
-            else if(masterVolume>0&&IsMouseButtonDown(MOUSE_LEFT_BUTTON)){
-                if(!isHold){
-                    isHold=1;
-                    holdTimer=GetTime();
-                }
-                else if(GetTime()-holdTimer>=0.2){
-                    holdTimer=GetTime();
-                    masterVolume--;
-                    SetMasterVolume(masterVolume/10.f);
-                }
-            }
-        }
-    }
     if(IsMouseButtonPressed(MOUSE_LEFT_BUTTON)){
         if(!gameStart){
             gameStart=1;
             timer=GetTime();
         }
         else if(!menuBoxActive&&!musicButtonActive&&gameOver){
-            clicked=0;
-            gameOver=0;
-            gameStart=0;   
-            cntL=0;
-            cntR=0; 
-            for(int i=0;i<5;i++) graveyard[i]={0,0};
-            moveCount=0;
+            clearGame();
             init();
         }
         else if(!menuBoxActive&&CheckCollisionPointRec(mousePos, musicButtonBounds)){
@@ -629,19 +662,146 @@ static inline void update(){
 }
 
 static void drawMenu(){
-
+    // DrawTextEx(GetFontDefault(),"Press enter to start the game", {0,0}, 32, 1, BLACK);
+    DrawTextEx(GetFontDefault(),"Catur Abjad", titleMenuPos, 64, 1, BLACK);
+    DrawRectangleRec(menuBox,BLACK);
+    DrawTextEx(GetFontDefault(),"Timer: ", timerMenuPos, 30, 1, WHITE);
+    DrawTextEx(GetFontDefault(),std::to_string(gameTime).c_str(), gameTimePos, 30, 1, WHITE);
+    DrawTextEx(GetFontDefault(),"Increment: ", incrementPos, 30, 1, WHITE);
+    DrawTextEx(GetFontDefault(),std::to_string(incTime).c_str(), incTimePos, 30, 1, WHITE);
+    DrawRectangleRec(gameTimeIncBox,WHITE);
+    DrawRectangleRec(gameTimeDecBox,WHITE);
+    DrawRectangleRec(incTimeIncBox,WHITE);
+    DrawRectangleRec(incTimeDecBox,WHITE);
+    DrawTextEx(GetFontDefault(),"-",gameTimeIncPos,30,1,BLACK);
+    DrawTextEx(GetFontDefault(),"+",gameTimeDecPos,30,1,BLACK);
+    DrawTextEx(GetFontDefault(),"-",incTimeIncPos,30,1,BLACK);
+    DrawTextEx(GetFontDefault(),"+",incTimeDecPos,30,1,BLACK);
+    DrawRectangleRec(playGameBox,WHITE);
+    DrawTextEx(GetFontDefault(),"Play Game", playGamePos, 30, 1, BLACK);
+    drawMusicBox();
 }
 
 static void updateMenu(){
-
+    if(WindowShouldClose()) runWindow = 0;
+    Vector2 mousePos = GetMousePosition();
+    if(musicButtonActive) handleMusicBox(mousePos);
+    if(IsMouseButtonPressed(MOUSE_LEFT_BUTTON)&&CheckCollisionPointRec(mousePos, musicButtonBounds)) musicButtonActive=!musicButtonActive;
+    if(isHold&&IsMouseButtonUp(MOUSE_LEFT_BUTTON)) isHold=0;
+    if(!musicButtonActive){
+        bool changed=false,gt=false;
+        if(CheckCollisionPointRec(mousePos, incTimeIncBox)&&incTime>0){
+            if(IsMouseButtonPressed(MOUSE_LEFT_BUTTON)){
+                incTime--;
+                changed=1;
+            }
+            else if(IsMouseButtonDown(MOUSE_LEFT_BUTTON)){
+                if(!isHold){
+                    isHold=1;
+                    holdTimer=GetTime();
+                }
+                else if(GetTime()-holdTimer>=0.2){
+                    incTime--;
+                    holdTimer=GetTime();
+                }
+                changed=1;
+            }
+        }
+        if(CheckCollisionPointRec(mousePos, incTimeDecBox)&&incTime<5){
+            if(IsMouseButtonPressed(MOUSE_LEFT_BUTTON)){
+                incTime++;
+                changed=1;
+            }
+            else if(IsMouseButtonDown(MOUSE_LEFT_BUTTON)){
+                if(!isHold){
+                    isHold=1;
+                    holdTimer=GetTime();
+                }
+                else if(GetTime()-holdTimer>=0.2){
+                    incTime++;
+                    holdTimer=GetTime();
+                }
+                changed=1;
+            }
+        }
+        if(CheckCollisionPointRec(mousePos, gameTimeIncBox)&&gameTime>1){
+            if(IsMouseButtonPressed(MOUSE_LEFT_BUTTON)){
+                gameTime--;
+                changed=1;
+                gt=1;
+            }
+            else if(IsMouseButtonDown(MOUSE_LEFT_BUTTON)){
+                if(!isHold){
+                    isHold=1;
+                    holdTimer=GetTime();
+                }
+                else if(GetTime()-holdTimer>=0.2){
+                    gameTime--;
+                    holdTimer=GetTime();
+                }
+                changed=1;
+                gt=1;
+            }
+        }
+        if(CheckCollisionPointRec(mousePos, gameTimeDecBox)&&gameTime<15){
+            if(IsMouseButtonPressed(MOUSE_LEFT_BUTTON)){
+                gameTime++;
+                changed=1;
+                gt=1;
+            }
+            else if(IsMouseButtonDown(MOUSE_LEFT_BUTTON)){
+                if(!isHold){
+                    isHold=1;
+                    holdTimer=GetTime();
+                }
+                else if(GetTime()-holdTimer>=0.2){
+                    gameTime++;
+                    holdTimer=GetTime();
+                }
+                changed=1;
+                gt=1;
+            }
+        }
+        if(changed){
+            if(gt) gameTimeSize=MeasureTextEx(GetFontDefault(),std::to_string(gameTime).c_str(),30,1);
+            else incTimeSize=MeasureTextEx(GetFontDefault(),std::to_string(incTime).c_str(),30,1);
+            gameTimeIncBox={gameTimePos.x+gameTimeSize.x+10,gameTimePos.y,30,30};
+            gameTimeDecBox={gameTimeIncBox.x+gameTimeIncBox.width+10,gameTimePos.y,30,30};
+            incTimeIncBox={incTimePos.x+incTimeSize.x+10,incTimePos.y,30,30};
+            incTimeDecBox={incTimeIncBox.x+incTimeIncBox.width+10,incTimePos.y,30,30};
+            gameTimeIncPos={gameTimeIncBox.x+gameTimeIncBox.width/2-vDownSize.x/2,gameTimePos.y};
+            gameTimeDecPos={gameTimeDecBox.x+gameTimeDecBox.width/2-vUpSize.x/2,gameTimePos.y};
+            incTimeIncPos={incTimeIncBox.x+incTimeIncBox.width/2-vDownSize.x/2,incTimePos.y};
+            incTimeDecPos={incTimeDecBox.x+incTimeDecBox.width/2-vUpSize.x/2,incTimePos.y};
+        }
+        if(IsMouseButtonPressed(MOUSE_LEFT_BUTTON)&&CheckCollisionPointRec(mousePos, playGameBox)){
+            init();
+            state=GameState::GameScreen;
+        } 
+    }
 }
 
 static void drawStart(){
-
+    DrawRectangleRec(blackTitleBox,BLACK);
+    DrawRectangleRec(grayTitleBox,GRAY);
+    DrawTextEx(GetFontDefault(),"U T X I C v", blackTitlePos, 24, 1, BLUE);
+    DrawTextEx(GetFontDefault(),"s C I X T U", grayTitlePos, 24, 1, GREEN);
+    DrawTextEx(GetFontDefault(),"Catur Abjad", titlePos, 90, 1, BLACK);
+    if(GetTime()-blinkTimer>=0.5){
+        blinkTimer=GetTime();
+        isBlinking=!isBlinking;
+    }
+    if(isBlinking) DrawTextEx(GetFontDefault(),"Press enter to start game", enterPos, 32, 1, BLACK);
+    drawMusicBox();
 }
 
 static void updateStart(){
-
+    if(WindowShouldClose()) runWindow = 0;
+    if(!musicButtonActive&&IsKeyPressed(KEY_ENTER)) state=GameState::MenuScreen;
+    if(isHold&&IsMouseButtonUp(MOUSE_LEFT_BUTTON)) isHold=0;
+    Vector2 mousePos = GetMousePosition();
+    if(musicButtonActive) handleMusicBox(mousePos);
+    if(IsMouseButtonPressed(MOUSE_LEFT_BUTTON)&&CheckCollisionPointRec(mousePos, musicButtonBounds)) musicButtonActive=!musicButtonActive;
 }
 
 int main(){
@@ -650,7 +810,8 @@ int main(){
     InitAudioDevice();
     SetAudioStreamBufferSizeDefault(9216);
     SetExitKey(KEY_NULL);
-    // SetTargetFPS(30);
+    SetTargetFPS(30);
+    SetMasterVolume(masterVolume/10.f);
     pieceSize={
         MeasureTextEx(GetFontDefault(),"C",30,1),
         MeasureTextEx(GetFontDefault(),"I",30,1),
@@ -658,9 +819,8 @@ int main(){
         MeasureTextEx(GetFontDefault(),"T",30,1),
         MeasureTextEx(GetFontDefault(),"U",30,1)
     };
-    init();
     textSoundSize=MeasureTextEx(GetFontDefault(),"Music",30,1);
-    textSoundPos={360-(textSoundSize.x/2),660-(textSoundSize.y/2)};
+    textSoundPos={screenWidth/2-(textSoundSize.x/2),660-(textSoundSize.y/2)};
     musicButtonBounds={
         textSoundPos.x,
         textSoundPos.y,
@@ -668,23 +828,23 @@ int main(){
         textSoundSize.y
     };
     overSize=MeasureTextEx(GetFontDefault(),"Game Over",30,1);
-    overPos={360-(overSize.x/2),60-(overSize.y/2)};
+    overPos={screenWidth/2-(overSize.x/2),60-(overSize.y/2)};
     bTurnSize=MeasureTextEx(GetFontDefault(),"Black's Turn",30,1);
-    bTurnPos={360-(bTurnSize.x/2),90-(bTurnSize.y/2)};
+    bTurnPos={screenWidth/2-(bTurnSize.x/2),90-(bTurnSize.y/2)};
     gTurnSize=MeasureTextEx(GetFontDefault(),"Gray's Turn",30,1);
-    gTurnPos={360-(gTurnSize.x/2),90-(gTurnSize.y/2)};
+    gTurnPos={screenWidth/2-(gTurnSize.x/2),90-(gTurnSize.y/2)};
     bTimerSize=MeasureTextEx(GetFontDefault(),"Black's Timer",30,1);
-    bTimerPos={120-(bTimerSize.x/2),30-(bTimerSize.y/2)};
+    bTimerPos={screenWidth/6-(bTimerSize.x/2),30-(bTimerSize.y/2)};
     gTimerSize=MeasureTextEx(GetFontDefault(),"Gray's Timer",30,1);
-    gTimerPos={600-(gTimerSize.x/2),30-(gTimerSize.y/2)};
+    gTimerPos={screenWidth*5/6-(gTimerSize.x/2),30-(gTimerSize.y/2)};
     resetSize=MeasureTextEx(GetFontDefault(),"Click anywhere to reset the game!",24,1);
-    resetPos={360-(resetSize.x/2),360-(resetSize.y/2)};
+    resetPos={screenWidth/2-(resetSize.x/2),screenHeight/2-(resetSize.y/2)};
     startSize=MeasureTextEx(GetFontDefault(),"Click anywhere to start the game!",24,1);
-    startPos={360-(startSize.x/2),360-(startSize.y/2)};
+    startPos={screenWidth/2-(startSize.x/2),screenHeight/2-(startSize.y/2)};
     menuSize=MeasureTextEx(GetFontDefault(),"Would you like to go back to main menu?",24,1);
-    menuPos={360-(menuSize.x/2),330-(menuSize.y/2)};
+    menuPos={screenWidth/2-(menuSize.x/2),330-(menuSize.y/2)};
     choiceSize=MeasureTextEx(GetFontDefault(),"YES (Enter) or NO (ESC)",30,1);
-    choicePos={360-(choiceSize.x/2),390-(choiceSize.y/2)};
+    choicePos={screenWidth/2-(choiceSize.x/2),390-(choiceSize.y/2)};
     volumeSize=MeasureTextEx(GetFontDefault(), "Volume:", 30, 1);
     // volumePos={405-volumeSize.y, 30};
     barLength = (420-volumeSize.x)/11;
@@ -696,15 +856,66 @@ int main(){
     nextPos={645-(nextSize.x/2),330-(nextSize.y/2)};
     prevSize=MeasureTextEx(GetFontDefault(), "<", 30, 1);
     prevPos={75-(prevSize.x/2),330-(prevSize.y/2)};
+    titleSize=MeasureTextEx(GetFontDefault(),"Catur Abjad",90,1);
+    titlePos={screenWidth/2-titleSize.x/2,screenHeight/2-titleSize.y};
+    enterSize=MeasureTextEx(GetFontDefault(),"Press enter to start game",32,1);
+    enterPos={screenWidth/2-enterSize.x/2,screenHeight/2};
+    blackTitleSize=MeasureTextEx(GetFontDefault(),"U T X I C v",24,1);
+    blackTitlePos={screenWidth/2-blackTitleSize.x,titlePos.y-blackTitleSize.y};
+    grayTitleSize=MeasureTextEx(GetFontDefault(),"s C I X T U",24,1);
+    grayTitlePos={blackTitlePos.x+blackTitleSize.x,blackTitlePos.y};
+    blackTitleBox={blackTitlePos.x-10,blackTitlePos.y-5,blackTitleSize.x+10,blackTitleSize.y+10};
+    grayTitleBox={grayTitlePos.x,grayTitlePos.y-5,grayTitleSize.x+10,grayTitleSize.y+10};
+    titleMenuSize=MeasureTextEx(GetFontDefault(),"Catur Abjad",64,1);
+    titleMenuPos={screenWidth/2-titleMenuSize.x/2,60};
+    timerMenuSize=MeasureTextEx(GetFontDefault(),"Timer: ",30,1);
+    gameTimeSize=MeasureTextEx(GetFontDefault(),std::to_string(gameTime).c_str(),30,1);
+    incTimeSize=MeasureTextEx(GetFontDefault(),std::to_string(incTime).c_str(),30,1);
     for(int i=1;i<=10;i++){
         volumeRec[i-1]={150+volumeSize.x+i*barLength, 405-volumeSize.y, barLength, volumeSize.y};  
     }
-    song[0]=LoadMusicStream("assets/music/mafiaslwt.mp3");
-    song[1]=LoadMusicStream("assets/music/ganyangffff.mp3");
-    PlayMusicStream(song[curSong]);
+    incrementSize=MeasureTextEx(GetFontDefault(),"Increment: ",30,1);
+    playGameSize=MeasureTextEx(GetFontDefault(),"Play Game",30,1);
+    float menuBoxSize=playGameSize.y+timerMenuSize.y+incrementSize.y+60;
+    menuBox={titleMenuPos.x,screenHeight/2-menuBoxSize/2.f,titleMenuSize.x,menuBoxSize};
+    timerMenuPos={menuBox.x+menuBox.width/10,menuBox.y+10};
+    gameTimePos={timerMenuPos.x+timerMenuSize.x,timerMenuPos.y};
+    incrementPos={timerMenuPos.x,timerMenuPos.y+timerMenuSize.y+10};
+    incTimePos={incrementPos.x+incrementSize.x,incrementPos.y};
+    playGameBox={screenWidth/2-playGameSize.x/2-10,incrementPos.y+incrementSize.y+10,playGameSize.x+20,playGameSize.y+20};
+    playGamePos={playGameBox.x+10,playGameBox.y+10};
+    gameTimeIncBox={gameTimePos.x+gameTimeSize.x+10,gameTimePos.y,30,30};
+    gameTimeDecBox={gameTimeIncBox.x+gameTimeIncBox.width+10,gameTimePos.y,30,30};
+    incTimeIncBox={incTimePos.x+incTimeSize.x+10,incTimePos.y,30,30};
+    incTimeDecBox={incTimeIncBox.x+incTimeIncBox.width+10,incTimePos.y,30,30};
+    gameTimeIncPos={gameTimeIncBox.x+gameTimeIncBox.width/2-vDownSize.x/2,gameTimePos.y};
+    gameTimeDecPos={gameTimeDecBox.x+gameTimeDecBox.width/2-vUpSize.x/2,gameTimePos.y};
+    incTimeIncPos={incTimeIncBox.x+incTimeIncBox.width/2-vDownSize.x/2,incTimePos.y};
+    incTimeDecPos={incTimeDecBox.x+incTimeDecBox.width/2-vUpSize.x/2,incTimePos.y};
+    song.reserve(MAX_SONG);
+    songList.reserve(MAX_SONG);
+    std::string musicPath="assets/music";
+    for(const auto &entry:std::filesystem::directory_iterator(musicPath)){
+        if(song.size()==MAX_SONG) break;
+        if(entry.is_regular_file()){
+            auto path=entry.path();
+            std::string ext=path.extension().string();
+            if(ext==".mp3"){
+                Music newSong=LoadMusicStream(path.string().c_str());
+                std::string filename=path.filename().string();
+                char* songName=new char[filename.length()+1];
+                std::strcpy(songName,filename.c_str());
+                songList.push_back(songName);
+                song.push_back(newSong);
+            }
+        }
+    }
+    if(!song.empty()) PlayMusicStream(song[curSong]);
     while(runWindow){
         BeginDrawing();
         ClearBackground(RAYWHITE);
+        DrawFPS(0,0);
+        if(!song.empty()) UpdateMusicStream(song[curSong]);
         if(state==GameState::GameScreen){
             draw();
             update();
@@ -719,7 +930,8 @@ int main(){
         }
         EndDrawing();
     }
-    for(auto &i:song) UnloadMusicStream(i);
+    for(const char* name:songList) delete[] name;
+    for(Music &i:song) UnloadMusicStream(i);
     CloseAudioDevice();
     CloseWindow();
 }
