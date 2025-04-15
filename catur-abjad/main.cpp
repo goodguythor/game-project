@@ -1,19 +1,186 @@
 #include "raylib.h"
 #include <vector>
-// #include <string>
+#include <string>
 // #include <cstdint>
 #include <iostream>
 #include <filesystem>
 #include <cstring>
 
-// TODO: IMPLEMENT GAME LOGIC
-
+// TODO:
+// Add power ups such as Piece ressurection, Move 2 piece in 1 turn, Piece promotion ... 
+// Add ability (shield, swap, freeze, ...)
+// Add in game help/tutorial
+// Add more song prolly
+// Improve game rule
+// Resize screen 
+// Compress all file before shipment
+// Add animation
 #define MAX_SONG 32
 
-typedef struct{
+class GameText{
+private:
+    std::string text;
+    Vector2 pos,size;
+    int fontSize;
+    Color color;
+public:
+    GameText(const std::string textInput,Vector2 position,const int fontSizeInput,const Color col,const std::pair<bool,bool> central, const std::pair<bool,bool> start){
+        text=textInput;
+        fontSize=fontSizeInput;
+        color=col;
+        size=MeasureTextEx(GetFontDefault(),text.c_str(),fontSize,1);
+        pos=position;
+        pos.x-=central.first?size.x/2:start.first?0:size.x;
+        pos.y-=central.second?size.y/2:start.second?0:size.y;
+    }
+    void Draw(){
+        DrawTextEx(GetFontDefault(),text.c_str(),pos,fontSize,1,color);
+    }
+    void Update(const std::string &newText){
+        text=newText;
+        Vector2 newSize=MeasureTextEx(GetFontDefault(),text.c_str(),fontSize,1);
+        pos.x-=(newSize.x-size.x)/2;
+        pos.y-=(newSize.y-size.y)/2;
+        size=newSize;
+    }
+    void Update(const std::string &newText,const Color col){
+        text=newText;
+        Vector2 newSize=MeasureTextEx(GetFontDefault(),text.c_str(),fontSize,1);
+        pos.x-=(newSize.x-size.x)/2;
+        pos.y-=(newSize.y-size.y)/2;
+        size=newSize;
+        color=col;
+    }
+    void Update(float x,float y){
+        pos.x+=x;
+        pos.y+=y;
+    }
+    float GetPosY(){
+        return pos.y;
+    }
+    float GetPosX(){
+        return pos.x;
+    }
+    float GetEndPosX(){
+        return pos.x+size.x;
+    }
+    float GetEndPosY(){
+        return pos.y+size.y;
+    }
+    float GetSizeX(){
+        return size.x;
+    }
+    float GetSizeY(){
+        return size.y;
+    }
+};
+
+class PlayerClock{
+private:
+    char text[5];
+    Vector2 pos,central;
     int timeLeft;
     int increment;
-} PlayerClock;
+    Color color;
+    bool finished;
+public:
+    void Init(const int time,const int inc,const Vector2 &cen,const Color col){
+        timeLeft=time;
+        increment=inc;
+        color=col;  
+        finished=0;
+        central=cen;
+        sprintf(text, "%02d:%02d", timeLeft/60, timeLeft%60);
+        Vector2 size=MeasureTextEx(GetFontDefault(),text,30,1);
+        pos={central.x-(size.x/2),central.y-(size.y/2)};
+    }
+    void Draw(){
+        DrawTextEx(GetFontDefault(),text,pos,30,1,color);
+    }
+    void Update(bool inc){
+        timeLeft+=inc?increment:-1;
+        if(timeLeft==0) finished=1;
+        sprintf(text, "%02d:%02d", timeLeft/60, timeLeft%60);
+        Vector2 size=MeasureTextEx(GetFontDefault(),text,30,1);
+        pos={central.x-(size.x/2),central.y-(size.y/2)};
+    }
+    bool IsFinished(){
+        return finished;
+    }
+};
+
+class Button{
+private:
+    GameText buttonText;
+    Rectangle buttonBox;
+    Color color;
+    bool isRec;
+public:
+    Button(const std::string textInput,const Vector2 position,const int fontSizeInput,const Color textColor,const Color col,const std::pair<bool,bool> central, const std::pair<bool,bool> start,const bool rec)
+    :buttonText(textInput,position,fontSizeInput,textColor,central,start){
+        color=col;
+        isRec=rec;
+        buttonBox={
+            position.x-isRec?10.f:0,
+            position.y-isRec?10.f:0,
+            buttonText.GetSizeX()+isRec?20.f:0,
+            buttonText.GetSizeY()+isRec?20.f:0
+        };
+    }
+    void Draw(){
+        if(isRec) DrawRectangleRec(buttonBox,color);
+        buttonText.Draw();
+    }
+    void Update(float x,float y){
+        buttonText.Update(x,y);
+    }
+    float GetPosX(){
+        return buttonText.GetPosX()-isRec?10:0;
+    }
+    float GetPosY(){
+        return buttonText.GetPosY()-isRec?10:0;
+    }
+    float GetEndPosX(){
+        return buttonText.GetEndPosX()+isRec?10:0;
+    }
+    float GetEndPosY(){
+        return buttonText.GetEndPosY()+isRec?10:0;
+    }
+    Rectangle GetButtonBound(){
+        return buttonBox;
+    }
+};
+
+class Volume{
+private:
+    GameText volumeText;
+    Rectangle volumeRec[10];
+    int masterVolume;
+    float barLength;
+public:
+    Volume(const std::string textInput,const Vector2 position,const int fontSize,const Color col,const std::pair<bool,bool> central,const std::pair<bool,bool> start)
+    :volumeText(textInput,position,fontSize,col,central,central){
+        barLength=324.f/11.f;
+        for(int i=1;i<=10;i++){
+            volumeRec[i-1]={
+                150+volumeText.GetSizeX()+i*barLength, 
+                405-volumeText.GetSizeY(), 
+                barLength, 
+                volumeText.GetSizeY()
+            };
+        } 
+    }
+    void Draw(){
+        volumeText.Draw();
+        for(int i=1;i<=masterVolume;i++) DrawRectangleRec(volumeRec[i],WHITE);
+    }
+    void Update(bool up){
+        masterVolume+=up?1:-1;
+    }
+    int GetMasterVolume(){
+        return masterVolume;
+    }
+};
 
 enum class GameState{
     GameScreen,
@@ -21,75 +188,8 @@ enum class GameState{
     StartScreen  
 };
 
-static PlayerClock playerBlack, playerGray;
-static std::vector<Music> song;
-static std::vector<const char*> songList;
-static std::vector<std::vector<int>> grid(8,std::vector<int>(8));
-static std::pair<int,int> graveyard[5] = {{0,0},{0,0},{0,0},{0,0},{0,0}};
-static std::vector<Vector2> pieceSize;
-static Vector2 piecePos[8][8];
-static Rectangle nextButtonsBounds{630,315,30,30};
-static Rectangle prevButtonsBounds{60,315,30,30};
-static Rectangle volumeUpBounds{630,375,30,30};
-static Rectangle volumeDownBounds{60,375,30,30};
-static Rectangle volumeRec[10];
-static Rectangle blackTitleBox, grayTitleBox;
-static Rectangle playGameBox;
-static Rectangle menuBox;
-static Rectangle gameTimeIncBox,gameTimeDecBox;
-static Rectangle incTimeIncBox,incTimeDecBox;
-static Vector2 textSoundSize;
-static Vector2 textSoundPos;
-static Rectangle musicButtonBounds;
-static Vector2 overSize;
-static Vector2 overPos;
-static Vector2 bTurnSize;
-static Vector2 bTurnPos;
-static Vector2 gTurnSize;
-static Vector2 gTurnPos;
-static Vector2 bTimerSize;
-static Vector2 bTimerPos;
-static Vector2 gTimerSize;
-static Vector2 gTimerPos;
-static Vector2 resetSize;
-static Vector2 resetPos;
-static Vector2 startSize;
-static Vector2 startPos;
-static Vector2 menuSize;
-static Vector2 menuPos;
-static Vector2 choiceSize;
-static Vector2 choicePos;
-static Vector2 volumeSize;
-// static Vector2 volumePos;
-static float barLength;
-static Vector2 vUpSize;
-static Vector2 vUpPos;
-static Vector2 vDownSize;
-static Vector2 vDownPos;
-static Vector2 nextSize;
-static Vector2 nextPos;
-static Vector2 prevSize;
-static Vector2 prevPos;
-static Vector2 blackTimerSize, blackTimerPos;
-static Vector2 grayTimerSize, grayTimerPos;
-static Vector2 turnTextSize, turnTextPos;
-static Vector2 titleSize, titlePos;
-static Vector2 enterSize, enterPos;
-static Vector2 blackTitleSize, blackTitlePos;
-static Vector2 grayTitleSize, grayTitlePos;
-static Vector2 titleMenuSize, titleMenuPos;
-static Vector2 timerMenuSize, timerMenuPos;
-static Vector2 incrementSize, incrementPos;
-static Vector2 playGameSize, playGamePos;
-static Vector2 gameTimePos, incTimePos;
-static Vector2 gameTimeSize, incTimeSize;
-static Vector2 gameTimeIncPos,gameTimeDecPos;
-static Vector2 incTimeIncPos,incTimeDecPos;
 static std::vector<std::pair<Vector2,int>> bGravePos(16),gGravePos(16);
 static const char* characters="CIXTU";
-static char blackTimer[6];
-static char grayTimer[6];
-static char turnText[8];
 static float timer, holdTimer, blinkTimer=0, pauseTime = 0;
 static const int screenWidth = 720;
 static const int screenHeight = 720;
@@ -109,6 +209,47 @@ static bool musicButtonActive = 0;
 static bool menuBoxActive = 0;
 static bool isHold=0;
 static bool isBlinking=0;
+static Volume volume("Volume:",{150,405},30,WHITE,{0,0},{1,0});
+static PlayerClock playerBlack, playerGray;
+static std::vector<Music> song;
+static std::vector<const char*> songList;
+static std::vector<std::vector<int>> grid(8,std::vector<int>(8));
+static std::pair<int,int> graveyard[5] = {{0,0},{0,0},{0,0},{0,0},{0,0}};
+static std::vector<Vector2> pieceSize;
+static Vector2 piecePos[8][8];
+static Button musicGameButton("Music",{screenWidth/2,660},30,WHITE,BLACK,{1,1},{0,0},0);
+static Button volumeUpButton("+",{645,390},30,WHITE,BLACK,{1,1},{0,0},1);
+static Button volumeDownButton("-",{75,390},30,WHITE,BLACK,{1,1},{0,0},1);
+static Button nextSongButton(">",{645,330},30,WHITE,BLACK,{1,1},{0,0},1);
+static Button prevSongButton("+",{75,330},30,WHITE,BLACK,{1,1},{0,0},1);
+static GameText gameOverText("Game Over",{screenWidth/2,60},30,BLACK,{1,1},{0,0});
+static GameText turnText("Black's Turn",{screenWidth/2,90},30,BLACK,{1,1},{0,0});
+static GameText turnCountText("Turn 1",{screenWidth/2,30},30,BLACK,{1,1},{0,0});
+static GameText blackTimerText("Black's Timer",{screenWidth/6,30},30,BLACK,{1,1},{0,0});
+static GameText grayTimerText("Gray's Timer",{screenWidth*5/6,30},30,GRAY,{1,1},{0,0});
+static GameText resetGameText("Click anywhere to reset the game!",{screenWidth/2,screenHeight/2},24,BLACK,{1,1},{0,0});
+static GameText startGameText("Click anywhere to start the game!",{screenWidth/2,screenHeight/2},24,BLACK,{1,1},{0,0});
+static GameText mainMenuText("Would you like to go back to main menu?",{screenWidth/2,330},24,BLACK,{1,1},{0,0});
+static GameText choiceText("YES (Enter) or NO (ESC)",{screenWidth/2,390},30,BLACK,{1,1},{0,0});
+static GameText titleText("Catur Abjad",{screenWidth/2,screenHeight/2},90,BLACK,{1,0},{0,0});
+static GameText enterText("Press enter to start game",{screenWidth/2,screenHeight/2},90,BLACK,{1,0},{0,1});
+static Button blackTitleButton("U T X I C v",{screenWidth/2,titleText.GetPosY()},24,BLACK,BLUE,{0,0},{0,0},1);
+static Button grayTitleButton("s C I X T U",{screenWidth/2,blackTitleButton.GetPosY()},24,GRAY,GREEN,{0,0},{1,1},1);
+static GameText titleMenuText("Catur Abjad",{screenWidth/2,60},24,BLACK,{1,0},{0,1});
+static Rectangle menuBox{
+    titleMenuText.GetPosX(),
+    screenHeight/2+75,
+    titleMenuText.GetEndPosX()-titleMenuText.GetPosX(),
+    150
+};
+static GameText timerMenuText("Timer: 5",{menuBox.x+menuBox.width/10,menuBox.y+10},30,BLACK,{0,0},{1,1});
+static GameText incMenuText("Increment: 3",{timerMenuText.GetPosX(),timerMenuText.GetEndPosY()+10},30,BLACK,{0,0},{1,1});
+static Button playGameButton("Play Game",{screenWidth/2,incMenuText.GetEndPosY()+20},30,BLACK,WHITE,{1,0},{0,1},1);
+static Button timeUpButton("+",{timerMenuText.GetEndPosX()+20,timerMenuText.GetPosY()},30,BLACK,WHITE,{0,0},{1,1},1);
+static Button timeDownButton("-",{timeUpButton.GetEndPosX()+20,timerMenuText.GetPosY()},30,BLACK,WHITE,{0,0},{1,1},1);
+static Button incUpButton("+",{incMenuText.GetEndPosX()+20,incMenuText.GetPosY()},30,BLACK,WHITE,{0,0},{1,1},1);
+static Button incDownButton("-",{incMenuText.GetEndPosX()+20,incMenuText.GetPosY()},30,BLACK,WHITE,{0,0},{1,1},1);
+static GameText songText("Song: ganyangffff.mp3",{150,315},30,WHITE,{0,0},{1,1});
 
 static inline bool validGrid(int x,int y){
     return x>=0&&x<8&&y>=0&&y<8;
@@ -117,6 +258,7 @@ static inline bool validGrid(int x,int y){
 static inline void changeSong(bool nxt){
     StopMusicStream(song[curSong]);
     curSong=(curSong+(nxt?1:-1))%songList.size();
+    songText.Update(songList[curSong]);
     PlayMusicStream(song[curSong]);
 }
 
@@ -132,7 +274,7 @@ static inline void clearGame(){
 }
 
 static inline void handleMusicBox(const Vector2 &mousePos){
-    if(CheckCollisionPointRec(mousePos, nextButtonsBounds)){
+    if(CheckCollisionPointRec(mousePos, nextSongButton.GetButtonBound())){
         if(IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) changeSong(1);
         else if(IsMouseButtonDown(MOUSE_LEFT_BUTTON)){
             if(!isHold){
@@ -145,7 +287,7 @@ static inline void handleMusicBox(const Vector2 &mousePos){
             } 
         }
     }
-    if(CheckCollisionPointRec(mousePos, prevButtonsBounds)){
+    if(CheckCollisionPointRec(mousePos, prevSongButton.GetButtonBound())){
         if(IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) changeSong(0);
         else if(IsMouseButtonDown(MOUSE_LEFT_BUTTON)){
             if(!isHold){
@@ -158,7 +300,7 @@ static inline void handleMusicBox(const Vector2 &mousePos){
             } 
         }
     }
-    if(CheckCollisionPointRec(mousePos, volumeUpBounds)){
+    if(CheckCollisionPointRec(mousePos, volumeUpButton.GetButtonBound())){
         if(masterVolume<10&&IsMouseButtonPressed(MOUSE_LEFT_BUTTON)){
             masterVolume++;
             SetMasterVolume(masterVolume/10.f);
@@ -175,7 +317,7 @@ static inline void handleMusicBox(const Vector2 &mousePos){
             }
         }
     }
-    if(CheckCollisionPointRec(mousePos, volumeDownBounds)){
+    if(CheckCollisionPointRec(mousePos, volumeDownButton.GetButtonBound())){
         if(masterVolume>0&&IsMouseButtonPressed(MOUSE_LEFT_BUTTON)){
             masterVolume--;
             SetMasterVolume(masterVolume/10.f);
@@ -195,45 +337,26 @@ static inline void handleMusicBox(const Vector2 &mousePos){
 }
 
 static void drawMusicBox(){
-    DrawTextEx(GetFontDefault(),"Music",textSoundPos,30,1,BLACK);
+    musicGameButton.Draw();
     if(musicButtonActive){
         DrawRectangle(120,285,480,150,BLACK);
         DrawRectangle(60,315,30,30,BLACK);
         DrawRectangle(630,315,30,30,BLACK);
         DrawRectangle(60,375,30,30,BLACK);
         DrawRectangle(630,375,30,30,BLACK);
-        DrawText(TextFormat("Song: %s", songList[curSong]), 150, 315, 30, WHITE);
-        DrawText("Volume:", 150, 405-volumeSize.y, 30, WHITE);
-        for(int i=0;i<masterVolume;i++) DrawRectangleRec(volumeRec[i],WHITE);
-        DrawTextEx(GetFontDefault(),">",nextPos,30,1,WHITE);
-        DrawTextEx(GetFontDefault(),"<",prevPos,30,1,WHITE);
-        DrawTextEx(GetFontDefault(),"-",vDownPos,30,1,WHITE);
-        DrawTextEx(GetFontDefault(),"+",vUpPos,30,1,WHITE);
+        songText.Draw();
+        volume.Draw();
+        nextSongButton.Draw();
+        prevSongButton.Draw();
+        volumeUpButton.Draw();
+        volumeDownButton.Draw();
     }
 }
 
 static void init(){
     ClearBackground(RAYWHITE);
-    playerBlack = {
-        .timeLeft = gameTime*60,
-        .increment = incTime
-    };
-
-    playerGray = {
-        .timeLeft = gameTime*60,
-        .increment = incTime
-    };
-
-    sprintf(blackTimer, "%02d:%02d", playerBlack.timeLeft/60, playerBlack.timeLeft%60);
-    blackTimerSize=MeasureTextEx(GetFontDefault(),blackTimer,30,1);
-    blackTimerPos={120-(blackTimerSize.x/2),90-(blackTimerSize.y/2)};
-    sprintf(grayTimer, "%02d:%02d", playerGray.timeLeft/60, playerGray.timeLeft%60);
-    grayTimerSize=MeasureTextEx(GetFontDefault(),grayTimer,30,1);
-    grayTimerPos={600-(grayTimerSize.x/2),90-(grayTimerSize.y/2)};
-    sprintf(turnText, "Turn %d", moveCount+1);
-    turnTextSize=MeasureTextEx(GetFontDefault(),turnText,30,1);
-    turnTextPos={360-(turnTextSize.x/2),30-(turnTextSize.y/2)};
-
+    playerBlack.Init(gameTime*60,incTime,{120,90},BLACK);
+    playerGray.Init(gameTime*60,incTime,{600,90},GRAY);
     for(int i=2;i<6;i++){
         for(int j=0;j<8;j++){
             grid[i][j]=10;
@@ -388,7 +511,6 @@ static inline void draw(){
             if(y<7&&grid[x][y+1]/5!=side) DrawRectangle(posX,posY+60,60,60,WHITE);
         }
     }
-    DrawTextEx(GetFontDefault(),"Music",textSoundPos,30,1,BLACK);
     // DrawRectangle(120,120,480,480, WHITE);
     for(int i=120;i<=600;i+=60) DrawLine(i,120,i,600,BLACK);
     for(int i=120;i<=600;i+=60) DrawLine(120,i,600,i,BLACK);
@@ -414,29 +536,27 @@ static inline void draw(){
         DrawTextEx(GetFontDefault(),temp,gGravePos[i].first,30,1,BLACK);
     }
     if(gameOver){
-        DrawTextEx(GetFontDefault(),"Game Over",overPos,30,1,BLACK);
         DrawRectangle(120,285,480,150,BLACK);
-        DrawTextEx(GetFontDefault(),"Click anywhere to reset the game!",resetPos,24,1,WHITE);
+        gameOverText.Draw();
+        resetGameText.Draw();
     }
     else{
-        bool side=moveCount%2;
-        Color color=side?GRAY:BLACK;
-        DrawTextEx(GetFontDefault(),turnText,turnTextPos,30,1,color);
-        DrawTextEx(GetFontDefault(),side?"Gray's Turn":"Black's Turn",side?bTurnPos:gTurnPos,30,1,color);
-        DrawTextEx(GetFontDefault(),"Black's Timer",bTimerPos,30,1,BLACK);
-        DrawTextEx(GetFontDefault(),"Gray's Timer",gTimerPos,30,1,GRAY);
-        DrawTextEx(GetFontDefault(),blackTimer,blackTimerPos,30,1,BLACK);
-        DrawTextEx(GetFontDefault(),grayTimer,grayTimerPos,30,1,GRAY);
+        blackTimerText.Draw();
+        turnCountText.Draw();
+        grayTimerText.Draw();
+        playerBlack.Draw();
+        turnText.Draw();
+        playerGray.Draw();
     }
     if(!gameStart){
         DrawRectangle(120,285,480,150,BLACK);
-        DrawTextEx(GetFontDefault(),"Click anywhere to start the game!",startPos,24,1,WHITE);
+        startGameText.Draw();
     }
-    if(musicButtonActive) drawMusicBox();
+    drawMusicBox();
     if(menuBoxActive){
         DrawRectangle(120,285,480,150,BLACK);
-        DrawTextEx(GetFontDefault(),"Would you like to go back to main menu?",menuPos,24,1,WHITE);
-        DrawTextEx(GetFontDefault(),"YES (Enter) or NO (ESC)",choicePos,30,1,WHITE);
+        mainMenuText.Draw();
+        choiceText.Draw();
     }
 }
 
@@ -449,19 +569,9 @@ static inline void update(){
         else pauseTime=GetTime()-pauseTime;
     }
     if(gameStart&&!menuBoxActive&&!musicButtonActive&&!gameOver&&GetTime()-pauseTime-timer>=1){
-        if(moveCount&1){
-            playerGray.timeLeft--;
-            sprintf(grayTimer, "%02d:%02d", playerGray.timeLeft/60, playerGray.timeLeft%60);
-            grayTimerSize=MeasureTextEx(GetFontDefault(),grayTimer,30,1);
-            grayTimerPos={600-(grayTimerSize.x/2),90-(grayTimerSize.y/2)};
-        }
-        else{
-            playerBlack.timeLeft--;
-            sprintf(blackTimer, "%02d:%02d", playerBlack.timeLeft/60, playerBlack.timeLeft%60);
-            blackTimerSize=MeasureTextEx(GetFontDefault(),blackTimer,30,1);
-            blackTimerPos={120-(blackTimerSize.x/2),90-(blackTimerSize.y/2)};
-        }
-        if(playerBlack.timeLeft==0||playerGray.timeLeft==0) gameOver=1;
+        if(moveCount&1) playerGray.Update(0);
+        else playerBlack.Update(0);
+        if(playerBlack.IsFinished()||playerGray.IsFinished()) gameOver=1;
         timer=GetTime();
         pauseTime=0;
     }
@@ -482,7 +592,7 @@ static inline void update(){
             clearGame();
             init();
         }
-        else if(!menuBoxActive&&CheckCollisionPointRec(mousePos, musicButtonBounds)){
+        else if(!menuBoxActive&&CheckCollisionPointRec(mousePos, musicGameButton.GetButtonBound())){
             musicButtonActive=!musicButtonActive;
             if(musicButtonActive) pauseTime=GetTime();
             else pauseTime=GetTime()-pauseTime;
@@ -631,25 +741,14 @@ static inline void update(){
                                 }
                             }
                         }
-                        if(side){
-                            playerGray.timeLeft+=playerGray.increment;
-                            sprintf(grayTimer, "%02d:%02d", playerGray.timeLeft/60, playerGray.timeLeft%60);
-                            grayTimerSize=MeasureTextEx(GetFontDefault(),grayTimer,30,1);
-                            grayTimerPos={600-(grayTimerSize.x/2),90-(grayTimerSize.y/2)};
-                        } 
-                        else{
-                            playerBlack.timeLeft+=playerBlack.increment;
-                            sprintf(blackTimer, "%02d:%02d", playerBlack.timeLeft/60, playerBlack.timeLeft%60);
-                            blackTimerSize=MeasureTextEx(GetFontDefault(),blackTimer,30,1);
-                            blackTimerPos={120-(blackTimerSize.x/2),90-(blackTimerSize.y/2)};
-                        } 
+                        if(side) playerGray.Update(1);
+                        else playerBlack.Update(1);
                         grid[x][y]=10;
                         piecePos[x][y]={150.f+60*x,150.f+60*y};
                         piecePos[mouseX][mouseY]={150.f+60*mouseX-pieceSize[grid[mouseX][mouseY]%5].x/2,150.f+60*mouseY-pieceSize[grid[mouseX][mouseY]%5].y/2};
                         moveCount++;
-                        sprintf(turnText, "Turn %d", moveCount+1);
-                        turnTextSize=MeasureTextEx(GetFontDefault(),turnText,30,1);
-                        turnTextPos={360-(turnTextSize.x/2),30-(turnTextSize.y/2)};
+                        std::string newText=TextFormat("Turn %d",moveCount+1);
+                        turnCountText.Update(newText,moveCount&1?GRAY:BLACK);
                     }
                     clicked=0;
                     x=-1;
@@ -663,23 +762,15 @@ static inline void update(){
 }
 
 static void drawMenu(){
-    // DrawTextEx(GetFontDefault(),"Press enter to start the game", {0,0}, 32, 1, BLACK);
-    DrawTextEx(GetFontDefault(),"Catur Abjad", titleMenuPos, 64, 1, BLACK);
     DrawRectangleRec(menuBox,BLACK);
-    DrawTextEx(GetFontDefault(),"Timer: ", timerMenuPos, 30, 1, WHITE);
-    DrawTextEx(GetFontDefault(),std::to_string(gameTime).c_str(), gameTimePos, 30, 1, WHITE);
-    DrawTextEx(GetFontDefault(),"Increment: ", incrementPos, 30, 1, WHITE);
-    DrawTextEx(GetFontDefault(),std::to_string(incTime).c_str(), incTimePos, 30, 1, WHITE);
-    DrawRectangleRec(gameTimeIncBox,WHITE);
-    DrawRectangleRec(gameTimeDecBox,WHITE);
-    DrawRectangleRec(incTimeIncBox,WHITE);
-    DrawRectangleRec(incTimeDecBox,WHITE);
-    DrawTextEx(GetFontDefault(),"-",gameTimeIncPos,30,1,BLACK);
-    DrawTextEx(GetFontDefault(),"+",gameTimeDecPos,30,1,BLACK);
-    DrawTextEx(GetFontDefault(),"-",incTimeIncPos,30,1,BLACK);
-    DrawTextEx(GetFontDefault(),"+",incTimeDecPos,30,1,BLACK);
-    DrawRectangleRec(playGameBox,WHITE);
-    DrawTextEx(GetFontDefault(),"Play Game", playGamePos, 30, 1, BLACK);
+    titleText.Draw();
+    timerMenuText.Draw();
+    incMenuText.Draw();
+    timeUpButton.Draw();
+    timeDownButton.Draw();
+    incUpButton.Draw();
+    incDownButton.Draw();
+    playGameButton.Draw();
     drawMusicBox();
 }
 
@@ -687,11 +778,11 @@ static void updateMenu(){
     if(WindowShouldClose()) runWindow = 0;
     Vector2 mousePos = GetMousePosition();
     if(musicButtonActive) handleMusicBox(mousePos);
-    if(IsMouseButtonPressed(MOUSE_LEFT_BUTTON)&&CheckCollisionPointRec(mousePos, musicButtonBounds)) musicButtonActive=!musicButtonActive;
+    if(IsMouseButtonPressed(MOUSE_LEFT_BUTTON)&&CheckCollisionPointRec(mousePos, musicGameButton.GetButtonBound())) musicButtonActive=!musicButtonActive;
     if(isHold&&IsMouseButtonUp(MOUSE_LEFT_BUTTON)) isHold=0;
     if(!musicButtonActive){
         bool changed=false,gt=false;
-        if(CheckCollisionPointRec(mousePos, incTimeIncBox)&&incTime>0){
+        if(CheckCollisionPointRec(mousePos,incDownButton.GetButtonBound())&&incTime>0){
             if(IsMouseButtonPressed(MOUSE_LEFT_BUTTON)){
                 incTime--;
                 changed=1;
@@ -708,7 +799,7 @@ static void updateMenu(){
                 changed=1;
             }
         }
-        if(CheckCollisionPointRec(mousePos, incTimeDecBox)&&incTime<5){
+        if(CheckCollisionPointRec(mousePos,incUpButton.GetButtonBound())&&incTime<5){
             if(IsMouseButtonPressed(MOUSE_LEFT_BUTTON)){
                 incTime++;
                 changed=1;
@@ -725,7 +816,7 @@ static void updateMenu(){
                 changed=1;
             }
         }
-        if(CheckCollisionPointRec(mousePos, gameTimeIncBox)&&gameTime>1){
+        if(CheckCollisionPointRec(mousePos,timeDownButton.GetButtonBound())&&gameTime>1){
             if(IsMouseButtonPressed(MOUSE_LEFT_BUTTON)){
                 gameTime--;
                 changed=1;
@@ -744,7 +835,7 @@ static void updateMenu(){
                 gt=1;
             }
         }
-        if(CheckCollisionPointRec(mousePos, gameTimeDecBox)&&gameTime<15){
+        if(CheckCollisionPointRec(mousePos,timeUpButton.GetButtonBound())&&gameTime<15){
             if(IsMouseButtonPressed(MOUSE_LEFT_BUTTON)){
                 gameTime++;
                 changed=1;
@@ -764,18 +855,24 @@ static void updateMenu(){
             }
         }
         if(changed){
-            if(gt) gameTimeSize=MeasureTextEx(GetFontDefault(),std::to_string(gameTime).c_str(),30,1);
-            else incTimeSize=MeasureTextEx(GetFontDefault(),std::to_string(incTime).c_str(),30,1);
-            gameTimeIncBox={gameTimePos.x+gameTimeSize.x+10,gameTimePos.y,30,30};
-            gameTimeDecBox={gameTimeIncBox.x+gameTimeIncBox.width+10,gameTimePos.y,30,30};
-            incTimeIncBox={incTimePos.x+incTimeSize.x+10,incTimePos.y,30,30};
-            incTimeDecBox={incTimeIncBox.x+incTimeIncBox.width+10,incTimePos.y,30,30};
-            gameTimeIncPos={gameTimeIncBox.x+gameTimeIncBox.width/2-vDownSize.x/2,gameTimePos.y};
-            gameTimeDecPos={gameTimeDecBox.x+gameTimeDecBox.width/2-vUpSize.x/2,gameTimePos.y};
-            incTimeIncPos={incTimeIncBox.x+incTimeIncBox.width/2-vDownSize.x/2,incTimePos.y};
-            incTimeDecPos={incTimeDecBox.x+incTimeDecBox.width/2-vUpSize.x/2,incTimePos.y};
+            if(gt){
+                std::string temp=std::to_string(gameTime);
+                float lastX=timerMenuText.GetPosX(),lastY=timerMenuText.GetEndPosY();
+                timerMenuText.Update(temp);
+                float difX=(timerMenuText.GetPosX()-lastX)/2,difY=(timerMenuText.GetEndPosY()-lastY)/2;
+                timeUpButton.Update((timerMenuText.GetPosX()-lastX)/2,(timerMenuText.GetEndPosY()-lastY)/2);
+                timeDownButton.Update((timerMenuText.GetPosX()-lastX)/2,(timerMenuText.GetEndPosY()-lastY)/2);
+            }
+            else{
+                std::string temp=std::to_string(incTime);
+                float lastX=incMenuText.GetPosX(),lastY=incMenuText.GetEndPosY();
+                incMenuText.Update(temp);
+                float difX=(incMenuText.GetPosX()-lastX)/2,difY=(incMenuText.GetEndPosY()-lastY)/2;
+                incUpButton.Update(difX,difY);
+                incDownButton.Update(difX,difY);
+            }
         }
-        if(IsMouseButtonPressed(MOUSE_LEFT_BUTTON)&&CheckCollisionPointRec(mousePos, playGameBox)){
+        if(IsMouseButtonPressed(MOUSE_LEFT_BUTTON)&&CheckCollisionPointRec(mousePos, playGameButton.GetButtonBound())){
             init();
             state=GameState::GameScreen;
         } 
@@ -783,16 +880,14 @@ static void updateMenu(){
 }
 
 static void drawStart(){
-    DrawRectangleRec(blackTitleBox,BLACK);
-    DrawRectangleRec(grayTitleBox,GRAY);
-    DrawTextEx(GetFontDefault(),"U T X I C v", blackTitlePos, 24, 1, BLUE);
-    DrawTextEx(GetFontDefault(),"s C I X T U", grayTitlePos, 24, 1, GREEN);
-    DrawTextEx(GetFontDefault(),"Catur Abjad", titlePos, 90, 1, BLACK);
+    blackTitleButton.Draw();
+    grayTitleButton.Draw();
+    titleText.Draw();
     if(GetTime()-blinkTimer>=0.5){
         blinkTimer=GetTime();
         isBlinking=!isBlinking;
     }
-    if(isBlinking) DrawTextEx(GetFontDefault(),"Press enter to start game", enterPos, 32, 1, BLACK);
+    if(isBlinking) startGameText.Draw();
     drawMusicBox();
 }
 
@@ -802,7 +897,7 @@ static void updateStart(){
     if(isHold&&IsMouseButtonUp(MOUSE_LEFT_BUTTON)) isHold=0;
     Vector2 mousePos = GetMousePosition();
     if(musicButtonActive) handleMusicBox(mousePos);
-    if(IsMouseButtonPressed(MOUSE_LEFT_BUTTON)&&CheckCollisionPointRec(mousePos, musicButtonBounds)) musicButtonActive=!musicButtonActive;
+    if(IsMouseButtonPressed(MOUSE_LEFT_BUTTON)&&CheckCollisionPointRec(mousePos,musicGameButton.GetButtonBound())) musicButtonActive=!musicButtonActive;
 }
 
 int main(){
@@ -820,79 +915,6 @@ int main(){
         MeasureTextEx(GetFontDefault(),"T",30,1),
         MeasureTextEx(GetFontDefault(),"U",30,1)
     };
-    textSoundSize=MeasureTextEx(GetFontDefault(),"Music",30,1);
-    textSoundPos={screenWidth/2-(textSoundSize.x/2),660-(textSoundSize.y/2)};
-    musicButtonBounds={
-        textSoundPos.x,
-        textSoundPos.y,
-        textSoundSize.x,
-        textSoundSize.y
-    };
-    overSize=MeasureTextEx(GetFontDefault(),"Game Over",30,1);
-    overPos={screenWidth/2-(overSize.x/2),60-(overSize.y/2)};
-    bTurnSize=MeasureTextEx(GetFontDefault(),"Black's Turn",30,1);
-    bTurnPos={screenWidth/2-(bTurnSize.x/2),90-(bTurnSize.y/2)};
-    gTurnSize=MeasureTextEx(GetFontDefault(),"Gray's Turn",30,1);
-    gTurnPos={screenWidth/2-(gTurnSize.x/2),90-(gTurnSize.y/2)};
-    bTimerSize=MeasureTextEx(GetFontDefault(),"Black's Timer",30,1);
-    bTimerPos={screenWidth/6-(bTimerSize.x/2),30-(bTimerSize.y/2)};
-    gTimerSize=MeasureTextEx(GetFontDefault(),"Gray's Timer",30,1);
-    gTimerPos={screenWidth*5/6-(gTimerSize.x/2),30-(gTimerSize.y/2)};
-    resetSize=MeasureTextEx(GetFontDefault(),"Click anywhere to reset the game!",24,1);
-    resetPos={screenWidth/2-(resetSize.x/2),screenHeight/2-(resetSize.y/2)};
-    startSize=MeasureTextEx(GetFontDefault(),"Click anywhere to start the game!",24,1);
-    startPos={screenWidth/2-(startSize.x/2),screenHeight/2-(startSize.y/2)};
-    menuSize=MeasureTextEx(GetFontDefault(),"Would you like to go back to main menu?",24,1);
-    menuPos={screenWidth/2-(menuSize.x/2),330-(menuSize.y/2)};
-    choiceSize=MeasureTextEx(GetFontDefault(),"YES (Enter) or NO (ESC)",30,1);
-    choicePos={screenWidth/2-(choiceSize.x/2),390-(choiceSize.y/2)};
-    volumeSize=MeasureTextEx(GetFontDefault(), "Volume:", 30, 1);
-    // volumePos={405-volumeSize.y, 30};
-    barLength = (420-volumeSize.x)/11;
-    vUpSize=MeasureTextEx(GetFontDefault(), "+", 30, 1);
-    vUpPos={645-(vUpSize.x/2),390-(vUpSize.y/2)};
-    vDownSize=MeasureTextEx(GetFontDefault(), "-", 30, 1);
-    vDownPos={75-(vDownSize.x/2),390-(vDownSize.y/2)};
-    nextSize=MeasureTextEx(GetFontDefault(), ">", 30, 1);
-    nextPos={645-(nextSize.x/2),330-(nextSize.y/2)};
-    prevSize=MeasureTextEx(GetFontDefault(), "<", 30, 1);
-    prevPos={75-(prevSize.x/2),330-(prevSize.y/2)};
-    titleSize=MeasureTextEx(GetFontDefault(),"Catur Abjad",90,1);
-    titlePos={screenWidth/2-titleSize.x/2,screenHeight/2-titleSize.y};
-    enterSize=MeasureTextEx(GetFontDefault(),"Press enter to start game",32,1);
-    enterPos={screenWidth/2-enterSize.x/2,screenHeight/2};
-    blackTitleSize=MeasureTextEx(GetFontDefault(),"U T X I C v",24,1);
-    blackTitlePos={screenWidth/2-blackTitleSize.x,titlePos.y-blackTitleSize.y};
-    grayTitleSize=MeasureTextEx(GetFontDefault(),"s C I X T U",24,1);
-    grayTitlePos={blackTitlePos.x+blackTitleSize.x,blackTitlePos.y};
-    blackTitleBox={blackTitlePos.x-10,blackTitlePos.y-5,blackTitleSize.x+10,blackTitleSize.y+10};
-    grayTitleBox={grayTitlePos.x,grayTitlePos.y-5,grayTitleSize.x+10,grayTitleSize.y+10};
-    titleMenuSize=MeasureTextEx(GetFontDefault(),"Catur Abjad",64,1);
-    titleMenuPos={screenWidth/2-titleMenuSize.x/2,60};
-    timerMenuSize=MeasureTextEx(GetFontDefault(),"Timer: ",30,1);
-    gameTimeSize=MeasureTextEx(GetFontDefault(),std::to_string(gameTime).c_str(),30,1);
-    incTimeSize=MeasureTextEx(GetFontDefault(),std::to_string(incTime).c_str(),30,1);
-    for(int i=1;i<=10;i++){
-        volumeRec[i-1]={150+volumeSize.x+i*barLength, 405-volumeSize.y, barLength, volumeSize.y};  
-    }
-    incrementSize=MeasureTextEx(GetFontDefault(),"Increment: ",30,1);
-    playGameSize=MeasureTextEx(GetFontDefault(),"Play Game",30,1);
-    float menuBoxSize=playGameSize.y+timerMenuSize.y+incrementSize.y+60;
-    menuBox={titleMenuPos.x,screenHeight/2-menuBoxSize/2.f,titleMenuSize.x,menuBoxSize};
-    timerMenuPos={menuBox.x+menuBox.width/10,menuBox.y+10};
-    gameTimePos={timerMenuPos.x+timerMenuSize.x,timerMenuPos.y};
-    incrementPos={timerMenuPos.x,timerMenuPos.y+timerMenuSize.y+10};
-    incTimePos={incrementPos.x+incrementSize.x,incrementPos.y};
-    playGameBox={screenWidth/2-playGameSize.x/2-10,incrementPos.y+incrementSize.y+10,playGameSize.x+20,playGameSize.y+20};
-    playGamePos={playGameBox.x+10,playGameBox.y+10};
-    gameTimeIncBox={gameTimePos.x+gameTimeSize.x+10,gameTimePos.y,30,30};
-    gameTimeDecBox={gameTimeIncBox.x+gameTimeIncBox.width+10,gameTimePos.y,30,30};
-    incTimeIncBox={incTimePos.x+incTimeSize.x+10,incTimePos.y,30,30};
-    incTimeDecBox={incTimeIncBox.x+incTimeIncBox.width+10,incTimePos.y,30,30};
-    gameTimeIncPos={gameTimeIncBox.x+gameTimeIncBox.width/2-vDownSize.x/2,gameTimePos.y};
-    gameTimeDecPos={gameTimeDecBox.x+gameTimeDecBox.width/2-vUpSize.x/2,gameTimePos.y};
-    incTimeIncPos={incTimeIncBox.x+incTimeIncBox.width/2-vDownSize.x/2,incTimePos.y};
-    incTimeDecPos={incTimeDecBox.x+incTimeDecBox.width/2-vUpSize.x/2,incTimePos.y};
     song.reserve(MAX_SONG);
     songList.reserve(MAX_SONG);
     std::string musicPath="assets/music";
@@ -911,7 +933,9 @@ int main(){
             }
         }
     }
+
     if(!song.empty()) PlayMusicStream(song[curSong]);
+    // ToggleFullscreen();
     while(runWindow){
         BeginDrawing();
         ClearBackground(RAYWHITE);
