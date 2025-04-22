@@ -7,6 +7,7 @@
 #include <cstring>
 
 // TODO:
+// Refactor some shit like the pieces movements etc
 // Add power ups such as Piece ressurection, Move 2 piece in 1 turn, Piece promotion ... 
 // Add ability (shield, swap, freeze, ...)
 // Add in game help/tutorial
@@ -16,6 +17,35 @@
 // Compress all file before shipment
 // Add animation
 #define MAX_SONG 32
+
+enum class GameState{
+    GameScreen,
+    MenuScreen,
+    StartScreen  
+};
+
+Texture2D atlas;
+std::vector<std::pair<Vector2,int>> bGravePos(16),gGravePos(16);
+const char* characters="CIXTU";
+float timer, holdTimer, blinkTimer=0, pauseTime = 0;
+const int screenWidth = 720;
+const int screenHeight = 720;
+int cntL=0,cntR=0;
+int moveCount = 0;
+int curSong = 0;
+int x=-1,y=-1;
+int posX=-1,posY=-1;
+int gameTime=5,incTime=3;
+int curBPower=0,curGPower=0;
+GameState state = GameState::StartScreen;
+bool runWindow = 1;
+bool clicked = 0;
+bool gameOver = 0;
+bool gameStart = 0;
+bool musicButtonActive = 0;
+bool menuBoxActive = 0;
+bool isHold=0;
+bool isBlinking=0;
 
 class GameText{
 private:
@@ -36,6 +66,10 @@ public:
     void Draw(){
         DrawTextEx(GetFontDefault(),text.c_str(),pos,fontSize,1,color);
     }
+    void Draw(bool side){
+        float posX=side?510-size.x:210,posY=530;
+        DrawTextEx(GetFontDefault(),text.c_str(),{posX,posY},fontSize,1,color);
+    }
     void Update(const std::string &newText){
         text=newText;
         Vector2 newSize=MeasureTextEx(GetFontDefault(),text.c_str(),fontSize,1);
@@ -55,22 +89,22 @@ public:
         pos.x+=x;
         pos.y+=y;
     }
-    float GetPosY(){
+    inline float GetPosY(){
         return pos.y;
     }
-    float GetPosX(){
+    inline float GetPosX(){
         return pos.x;
     }
-    float GetEndPosX(){
+    inline float GetEndPosX(){
         return pos.x+size.x;
     }
-    float GetEndPosY(){
+    inline float GetEndPosY(){
         return pos.y+size.y;
     }
-    float GetSizeX(){
+    inline float GetSizeX(){
         return size.x;
     }
-    float GetSizeY(){
+    inline float GetSizeY(){
         return size.y;
     }
 };
@@ -104,7 +138,7 @@ public:
         Vector2 size=MeasureTextEx(GetFontDefault(),text,30,1);
         pos={central.x-(size.x/2),central.y-(size.y/2)};
     }
-    bool IsFinished(){
+    inline bool IsFinished(){
         return finished;
     }
 };
@@ -131,6 +165,13 @@ public:
         if(isRec) DrawRectangleRec(buttonBox,color);
         buttonText.Draw();
     }
+
+    void Draw(bool side){
+        float posX=side?520-buttonBox.width:200,posY=520;
+        if(isRec) DrawRectangleRec({posX,posY,buttonBox.width,buttonBox.height},color);
+        buttonText.Draw(side);
+    }
+
     void Update(float x,float y){
         buttonText.Update(x,y);
         buttonBox={
@@ -140,19 +181,19 @@ public:
             buttonText.GetSizeY()+(isRec?20.f:0)
         };
     }
-    float GetPosX(){
+    inline float GetPosX(){
         return buttonText.GetPosX()-(isRec?10.f:0);
     }
-    float GetPosY(){
+    inline float GetPosY(){
         return buttonText.GetPosY()-(isRec?10.f:0);
     }
-    float GetEndPosX(){
+    inline float GetEndPosX(){
         return buttonText.GetEndPosX()+(isRec?20.f:0);
     }
-    float GetEndPosY(){
+    inline float GetEndPosY(){
         return buttonText.GetEndPosY()+(isRec?20.f:0);
     }
-    Rectangle GetButtonBound(){
+    inline Rectangle GetButtonBound(){
         return buttonBox;
     }
 };
@@ -167,8 +208,8 @@ public:
     void Init(const std::string textInput,const Vector2 position,const int fontSize,const Color col,const std::pair<bool,bool> central,const std::pair<bool,bool> start){
         volumeText.Init(textInput,position,fontSize,col,central,start);
         barLength=324.f/11.f;
-        masterVolume=10.f;
-        SetMasterVolume(1.f);
+        masterVolume=0.f;
+        SetMasterVolume(0.f);
         for(int i=1;i<=10;i++){
             volumeRec[i-1]={
                 150+volumeText.GetSizeX()+i*barLength, 
@@ -191,32 +232,86 @@ public:
     }
 };
 
-enum class GameState{
-    GameScreen,
-    MenuScreen,
-    StartScreen  
+class Power{
+private:
+    Button descriptionBox;
+    Rectangle powerBox;
+    Vector2 pos;
+    int cooldown,currentCooldown;
+    int duration,currentDuration;
+    bool active;
+    bool hover;
+public:
+    void Init(const Rectangle box,const std::string textInput,Vector2 position,const int fontSizeInput,const int cd,const int dur,const Color textColor,const Color col,const std::pair<bool,bool> central, const std::pair<bool,bool> start,const bool rec){
+        powerBox=box;
+        pos=position;
+        cooldown=cd;
+        currentCooldown=0;
+        duration=dur;
+        currentDuration=0;
+        active=0;
+        hover=0;
+        position.y-=100;
+        descriptionBox.Init(textInput,position,fontSizeInput,textColor,col,central,start,rec);
+    }
+
+    void Draw(bool game,bool side){
+        float posX=pos.x,posY=pos.y;
+        if(game){
+            if(side) posX=450;
+            else posX=210;
+            posY=630;
+        }
+        if(hover) game?descriptionBox.Draw(side):descriptionBox.Draw();
+        if(active) DrawRectangleLinesEx({posX,posY,60,60},2,BLACK);
+        DrawTextureRec(atlas,powerBox,{posX,posY},WHITE);
+        if(currentCooldown>0) DrawTextEx(GetFontDefault(),std::to_string(currentCooldown).c_str(),{posX+30,posY+30},30,1,side?GREEN:BLUE);
+    }   
+
+    void UpdateCooldown(bool activated){
+        if(activated){
+            currentCooldown=cooldown;
+            active=0;
+        }
+        else{
+            currentCooldown--;
+            if(currentCooldown==0) active=1;
+        }
+    }
+
+    inline Rectangle GetBound(){
+        return {pos.x,pos.y,60,60};
+    }
+
+    inline int GetCooldown(){
+        return currentCooldown;
+    }
+
+    inline int GetDuration(){
+        return currentDuration;
+    }
+
+    inline bool IsActive(){
+        return active;
+    }
+
+    inline bool IsHover(){
+        return hover;
+    }
+
+    inline void SetActive(bool act){
+        if(act){
+            currentCooldown=0;
+            currentDuration=0;
+        }
+        active=act;
+    }
+
+    inline void SetHover(bool hov){
+        hover=hov;
+    }
 };
 
-static std::vector<std::pair<Vector2,int>> bGravePos(16),gGravePos(16);
-static const char* characters="CIXTU";
-static float timer, holdTimer, blinkTimer=0, pauseTime = 0;
-static const int screenWidth = 720;
-static const int screenHeight = 720;
-static int cntL=0,cntR=0;
-static int moveCount = 0;
-static int curSong = 0;
-static int x=-1,y=-1;
-static int posX=-1,posY=-1;
-static int gameTime=5,incTime=3;
-static GameState state = GameState::StartScreen;
-static bool runWindow = 1;
-static bool clicked = 0;
-static bool gameOver = 0;
-static bool gameStart = 0;
-static bool musicButtonActive = 0;
-static bool menuBoxActive = 0;
-static bool isHold=0;
-static bool isBlinking=0;
 PlayerClock playerBlack, playerGray;
 std::vector<Music> song;
 std::vector<std::string> songList;
@@ -225,6 +320,7 @@ std::pair<int,int> graveyard[5] = {{0,0},{0,0},{0,0},{0,0},{0,0}};
 std::vector<Vector2> pieceSize;
 Vector2 piecePos[8][8];
 Volume volume;
+std::vector<Power> blackPower(3),grayPower(3);
 Button musicGameButton;
 Button volumeUpButton;
 Button volumeDownButton;
@@ -254,18 +350,19 @@ Button incUpButton;
 Button incDownButton;
 GameText songText;
 
-static inline bool validGrid(int x,int y){
+
+bool validGrid(int x,int y){
     return x>=0&&x<8&&y>=0&&y<8;
 }
 
-static inline void changeSong(bool nxt){
+void changeSong(bool nxt){
     StopMusicStream(song[curSong]);
     curSong=(curSong+(nxt?1:-1))%songList.size();
     songText.Update(TextFormat("Song: %s",songList[curSong].c_str()));
     PlayMusicStream(song[curSong]);
 }
 
-static inline void clearGame(){
+void clearGame(){
     clicked=0;
     pauseTime=0;
     gameOver=0;
@@ -274,9 +371,11 @@ static inline void clearGame(){
     cntR=0; 
     for(int i=0;i<5;i++) graveyard[i]={0,0};
     moveCount=0;
+    grayPower[curGPower].SetActive(1);
+    blackPower[curBPower].SetActive(1);
 }
 
-static inline void handleMusicBox(const Vector2 &mousePos){
+void handleMusicBox(const Vector2 &mousePos){
     int masterVolume=volume.GetMasterVolume();
     if(CheckCollisionPointRec(mousePos, nextSongButton.GetButtonBound())){
         if(IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) changeSong(1);
@@ -336,7 +435,7 @@ static inline void handleMusicBox(const Vector2 &mousePos){
     }
 }
 
-static void drawMusicBox(){
+void drawMusicBox(){
     musicGameButton.Draw();
     if(musicButtonActive){
         DrawRectangle(120,285,480,150,BLACK);
@@ -349,7 +448,7 @@ static void drawMusicBox(){
     }
 }
 
-static void init(){
+void init(){
     ClearBackground(RAYWHITE);
     playerBlack.Init(gameTime*60,incTime,{120,90},BLACK);
     playerGray.Init(gameTime*60,incTime,{600,90},GRAY);
@@ -399,7 +498,7 @@ static void init(){
     piecePos[7][4]={150.f+60*7-pieceSize[4].x/2,150.f+60*4-pieceSize[4].y/2};
 }
 
-static inline void draw(){
+void draw(){
     if(clicked){
         int piece=grid[x][y]%5;
         bool side=grid[x][y]/5;
@@ -554,9 +653,11 @@ static inline void draw(){
         mainMenuText.Draw();
         choiceText.Draw();
     }
+    blackPower[curBPower].Draw(1,0);
+    grayPower[curGPower].Draw(1,1);
 }
 
-static inline void update(){
+void update(){
     // std::cout<<GetMasterVolume()<<'\n';
     if(WindowShouldClose()) runWindow = 0;
     if(!musicButtonActive&&IsKeyPressed(KEY_ESCAPE)){
@@ -577,6 +678,20 @@ static inline void update(){
         state=GameState::MenuScreen;
     }
     Vector2 mousePos = GetMousePosition();
+    if(CheckCollisionPointRec(mousePos,{210,630,60,60})){
+        if(!(moveCount&1)&&blackPower[curBPower].IsActive()&&IsMouseButtonPressed(MOUSE_LEFT_BUTTON)){
+            blackPower[curBPower].UpdateCooldown(1);
+        }
+        blackPower[curBPower].SetHover(1);
+    }
+    else blackPower[curBPower].SetHover(0);
+    if(CheckCollisionPointRec(mousePos,{450,630,60,60})){
+        if((moveCount&1)&&grayPower[curGPower].IsActive()&&IsMouseButtonPressed(MOUSE_LEFT_BUTTON)){
+            grayPower[curGPower].UpdateCooldown(1);
+        }
+        grayPower[curGPower].SetHover(1);
+    }
+    else grayPower[curGPower].SetHover(0);
     if(musicButtonActive) handleMusicBox(mousePos);
     if(isHold&&IsMouseButtonUp(MOUSE_LEFT_BUTTON)) isHold=0;
     if(IsMouseButtonPressed(MOUSE_LEFT_BUTTON)){
@@ -738,10 +853,12 @@ static inline void update(){
                             }
                         }
                         if(side){
+                            blackPower[curBPower].UpdateCooldown(0);
                             playerGray.Update(1);
                             turnText.Update("Black's Turn",BLACK);
                         }
                         else{
+                            grayPower[curGPower].UpdateCooldown(0);
                             playerBlack.Update(1);
                             turnText.Update("Gray's Turn",GRAY);
                         }
@@ -763,7 +880,7 @@ static inline void update(){
     }
 }
 
-static void drawMenu(){
+void drawMenu(){
     DrawRectangleRec(menuBox,BLACK);
     titleMenuText.Draw();
     timerMenuText.Draw();
@@ -774,12 +891,34 @@ static void drawMenu(){
     incDownButton.Draw();
     playGameButton.Draw();
     drawMusicBox();
+    for(auto &power:blackPower) power.Draw(0,0);
+    for(auto &power:grayPower) power.Draw(0,1);
 }
 
-static void updateMenu(){
+void updateMenu(){
     if(WindowShouldClose()) runWindow = 0;
     Vector2 mousePos = GetMousePosition();
     if(musicButtonActive) handleMusicBox(mousePos);
+    for(int i=0;i<3;i++){
+        if(CheckCollisionPointRec(mousePos,blackPower[i].GetBound())){
+            if(IsMouseButtonPressed(MOUSE_LEFT_BUTTON)){
+                blackPower[curBPower].SetActive(0);
+                blackPower[i].SetActive(1);
+                curBPower=i;
+            }
+            blackPower[i].SetHover(1);
+        }
+        else blackPower[i].SetHover(0);
+        if(CheckCollisionPointRec(mousePos,grayPower[i].GetBound())){
+            if(IsMouseButtonPressed(MOUSE_LEFT_BUTTON)){
+                grayPower[curGPower].SetActive(0);
+                grayPower[i].SetActive(1);
+                curGPower=i;
+            }
+            grayPower[i].SetHover(1);
+        }
+        else grayPower[i].SetHover(0);
+    }
     if(IsMouseButtonPressed(MOUSE_LEFT_BUTTON)&&CheckCollisionPointRec(mousePos, musicGameButton.GetButtonBound())) musicButtonActive=!musicButtonActive;
     if(isHold&&IsMouseButtonUp(MOUSE_LEFT_BUTTON)) isHold=0;
     if(!musicButtonActive){
@@ -881,7 +1020,7 @@ static void updateMenu(){
     }
 }
 
-static void drawStart(){
+void drawStart(){
     blackTitleButton.Draw();
     grayTitleButton.Draw();
     titleText.Draw();
@@ -893,7 +1032,7 @@ static void drawStart(){
     drawMusicBox();
 }
 
-static void updateStart(){
+void updateStart(){
     if(WindowShouldClose()) runWindow = 0;
     if(!musicButtonActive&&IsKeyPressed(KEY_ENTER)) state=GameState::MenuScreen;
     if(isHold&&IsMouseButtonUp(MOUSE_LEFT_BUTTON)) isHold=0;
@@ -903,6 +1042,7 @@ static void updateStart(){
 }
 
 void initGame(){
+    atlas=LoadTexture("assets/texture/game-texture.png");
     pieceSize={
         MeasureTextEx(GetFontDefault(),"C",30,1),
         MeasureTextEx(GetFontDefault(),"I",30,1),
@@ -944,6 +1084,87 @@ void initGame(){
     incDownButton.Init("-",{incMenuText.GetEndPosX()+20,incMenuText.GetPosY()},30,BLACK,WHITE,{0,0},{1,1},1);
     incUpButton.Init("+",{incDownButton.GetEndPosX()+20,incMenuText.GetPosY()},30,BLACK,WHITE,{0,0},{1,1},1);
     songText.Init("Song: ganyangffff.mp3",{screenWidth/2,315},30,WHITE,{1,0},{0,1});
+    blackPower[0].Init(
+        {0,0,60,60},
+        "Make one piece immune to enemy capture\nCooldown: 10 turns\nDuration: 2 turns",
+        {menuBox.x-70,menuBox.y},
+        24,
+        10,
+        2,
+        WHITE,
+        BLACK,
+        {0,0},
+        {1,1},
+        1
+    );
+    blackPower[0].SetActive(1);
+    grayPower[0].Init(
+        {0,0,60,60},
+        "Make one piece immune to enemy capture\nCooldown: 10 turns\nDuration: 2 turns",
+        {menuBox.x+menuBox.width+10,menuBox.y},
+        24,
+        10,
+        2,
+        WHITE,
+        BLACK,
+        {0,0},
+        {0,1},
+        1
+    );
+    grayPower[0].SetActive(1);
+    blackPower[1].Init(
+        {124,0,60,60},
+        "Make one enemy piece unable to move\nCooldown: 10 turns\nDuration: 2 turns",
+        {menuBox.x-70,menuBox.y+70},
+        24,
+        10,
+        2,
+        WHITE,
+        BLACK,
+        {0,0},
+        {1,1},
+        1
+    );
+    grayPower[1].Init(
+        {124,0,60,60},
+        "Make one enemy piece unable to move\nCooldown: 10 turns\nDuration: 2 turns",
+        {menuBox.x+menuBox.width+10,menuBox.y+70},
+        24,
+        10,
+        2,
+        WHITE,
+        BLACK,
+        {0,0},
+        {0,1},
+        1
+    );
+    blackPower[2].Init(
+        {186,0,60,60},
+        "Swap the positions of your own two pieces\nCooldown: 10 turns\nDuration: 2 turns",
+        {menuBox.x-70,menuBox.y+140},
+        24,
+        10,
+        2,
+        WHITE,
+        BLACK,
+        {0,0},
+        {1,1},
+        1
+    );
+    grayPower[2].Init(
+        {186,0,60,60},
+        "Swap the positions of your own two pieces\nCooldown: 10 turns\nDuration: 2 turns",
+        {menuBox.x+menuBox.width+10,menuBox.y+140},
+        24,
+        10,
+        2,
+        WHITE,
+        BLACK,
+        {0,0},
+        {0,1},
+        1
+    );
+
     song.reserve(MAX_SONG);
     songList.reserve(MAX_SONG);
     std::string musicPath="assets/music";
@@ -970,6 +1191,8 @@ int main(){
     SetAudioStreamBufferSizeDefault(9216);
     SetExitKey(KEY_NULL);
     SetTargetFPS(30);
+    // BeginBlendMode(BLEND_ALPHA);
+    // SetTextureFilter(atlas,TEXTURE_FILTER_ANISOTROPIC_16X);
     initGame();
     // ToggleFullscreen();
     while(runWindow){
