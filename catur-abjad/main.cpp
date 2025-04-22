@@ -89,6 +89,9 @@ public:
         pos.x+=x;
         pos.y+=y;
     }
+    inline void SetPosY(float y){
+        pos.y=y;
+    }
     inline float GetPosY(){
         return pos.y;
     }
@@ -339,7 +342,6 @@ GameText titleText;
 GameText enterText;
 Button blackTitleButton;
 Button grayTitleButton;
-GameText titleMenuText;
 Rectangle menuBox;
 GameText timerMenuText;
 GameText incMenuText;
@@ -882,7 +884,7 @@ void update(){
 
 void drawMenu(){
     DrawRectangleRec(menuBox,BLACK);
-    titleMenuText.Draw();
+    titleText.Draw();
     timerMenuText.Draw();
     incMenuText.Draw();
     timeUpButton.Draw();
@@ -1034,7 +1036,10 @@ void drawStart(){
 
 void updateStart(){
     if(WindowShouldClose()) runWindow = 0;
-    if(!musicButtonActive&&IsKeyPressed(KEY_ENTER)) state=GameState::MenuScreen;
+    if(!musicButtonActive&&IsKeyPressed(KEY_ENTER)){
+        titleText.SetPosY(60);
+        state=GameState::MenuScreen;
+    }
     if(isHold&&IsMouseButtonUp(MOUSE_LEFT_BUTTON)) isHold=0;
     Vector2 mousePos = GetMousePosition();
     if(musicButtonActive) handleMusicBox(mousePos);
@@ -1069,9 +1074,8 @@ void initGame(){
     enterText.Init("Press enter to start game",{screenWidth/2,screenHeight/2},24,BLACK,{1,0},{0,1});
     blackTitleButton.Init("U T X I C v",{screenWidth/2,titleText.GetPosY()-10},24,BLACK,BLUE,{0,0},{0,0},1);
     grayTitleButton.Init("s C I X T U",{screenWidth/2+20,blackTitleButton.GetPosY()+10},24,GRAY,GREEN,{0,0},{1,1},1);
-    titleMenuText.Init("Catur Abjad",{screenWidth/2,60},90,BLACK,{1,0},{0,1});
     menuBox={
-        titleMenuText.GetPosX(),
+        titleText.GetPosX(),
         screenHeight/2-100,
         480,
         200
