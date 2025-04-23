@@ -5,6 +5,7 @@
 #include <iostream>
 #include <filesystem>
 #include <cstring>
+#include <math.h>
 
 // TODO:
 // Refactor some shit like the pieces movements etc
@@ -238,14 +239,17 @@ public:
 class Power{
 private:
     Button descriptionBox;
+    Button instruction;
     Rectangle powerBox;
     Vector2 pos;
     int cooldown,currentCooldown;
     int duration,currentDuration;
     bool active;
     bool hover;
+    bool clicked;
+    bool own;
 public:
-    void Init(const Rectangle box,const std::string textInput,Vector2 position,const int fontSizeInput,const int cd,const int dur,const Color textColor,const Color col,const std::pair<bool,bool> central, const std::pair<bool,bool> start,const bool rec){
+    void Init(const Rectangle box,const std::string textInput,const bool o,Vector2 position,const int fontSizeInput,const int cd,const int dur,const Color textColor,const Color col,const std::pair<bool,bool> central, const std::pair<bool,bool> start,const bool rec){
         powerBox=box;
         pos=position;
         cooldown=cd;
@@ -254,8 +258,11 @@ public:
         currentDuration=0;
         active=0;
         hover=0;
+        clicked=0;
+        own=o;
         position.y-=100;
         descriptionBox.Init(textInput,position,fontSizeInput,textColor,col,central,start,rec);
+        instruction.Init(own?"Click on your own pieces":"Click on enemy pieces",{screenWidth/2,630},10,textColor,col,{1,1},{0,0},1);
     }
 
     void Draw(bool game,bool side){
@@ -265,21 +272,22 @@ public:
             else posX=210;
             posY=630;
         }
+        if(clicked) instruction.Draw();
         if(hover) game?descriptionBox.Draw(side):descriptionBox.Draw();
         if(active) DrawRectangleLinesEx({posX,posY,60,60},2,BLACK);
         DrawTextureRec(atlas,powerBox,{posX,posY},WHITE);
         if(currentCooldown>0) DrawTextEx(GetFontDefault(),std::to_string(currentCooldown).c_str(),{posX+30,posY+30},30,1,side?GREEN:BLUE);
     }   
 
-    void UpdateCooldown(bool activated){
-        if(activated){
-            currentCooldown=cooldown;
-            active=0;
-        }
-        else{
-            currentCooldown--;
-            if(currentCooldown==0) active=1;
-        }
+    void UpdateCooldown(){
+        currentCooldown--;
+        if(currentCooldown==0) active=1;
+    }
+
+    void Activate(){
+        active=0;
+        clicked=0;
+        currentCooldown=cooldown;
     }
 
     inline Rectangle GetBound(){
@@ -300,6 +308,18 @@ public:
 
     inline bool IsHover(){
         return hover;
+    }
+
+    inline bool IsClicked(){
+        return clicked;
+    }
+
+    inline bool IsOwn(){
+        return own;
+    }
+
+    inline void SetClicked(bool click){
+        clicked=click;
     }
 
     inline void SetActive(bool act){
@@ -682,14 +702,14 @@ void update(){
     Vector2 mousePos = GetMousePosition();
     if(CheckCollisionPointRec(mousePos,{210,630,60,60})){
         if(!(moveCount&1)&&blackPower[curBPower].IsActive()&&IsMouseButtonPressed(MOUSE_LEFT_BUTTON)){
-            blackPower[curBPower].UpdateCooldown(1);
+            blackPower[curBPower].SetClicked(1);
         }
         blackPower[curBPower].SetHover(1);
     }
     else blackPower[curBPower].SetHover(0);
     if(CheckCollisionPointRec(mousePos,{450,630,60,60})){
         if((moveCount&1)&&grayPower[curGPower].IsActive()&&IsMouseButtonPressed(MOUSE_LEFT_BUTTON)){
-            grayPower[curGPower].UpdateCooldown(1);
+            grayPower[curGPower].SetClicked(1);
         }
         grayPower[curGPower].SetHover(1);
     }
@@ -711,12 +731,31 @@ void update(){
             else pauseTime=GetTime()-pauseTime;
         }
         else if(!musicButtonActive&&!menuBoxActive){
-            int mouseX=(mousePos.x - 120)/60;
-            int mouseY=(mousePos.y - 120)/60;
+            int mouseX=std::floor(mousePos.x/60-2);
+            int mouseY=std::floor(mousePos.y/60-2);
+            // std::cout<<mousePos.x<<' '<<mousePos.y<<'\n';
             if(validGrid(mouseX,mouseY)){
                 int enemy=grid[mouseX][mouseY];
                 // std::cout<<piece<<'\n';
-                if(!clicked&&enemy!=10){
+                if(blackPower[curBPower].IsClicked()){
+                    if(enemy!=10&&blackPower[curBPower].IsOwn()&&(moveCount&1)==enemy/5){
+                        blackPower[curBPower].Activate();
+                    }
+                    else if(enemy!=10&&!blackPower[curBPower].IsOwn()&&(moveCount&1)!=enemy/5){
+                        blackPower[curBPower].Activate();
+                    }
+                    else blackPower[curBPower].SetClicked(0);
+                }
+                else if(enemy!=10&&grayPower[curGPower].IsClicked()){
+                    if(enemy!=10&&grayPower[curGPower].IsOwn()&&(moveCount&1)==enemy/5){
+                        grayPower[curGPower].Activate();
+                    }
+                    else if(enemy!=10&&!grayPower[curGPower].IsOwn()&&(moveCount&1)!=enemy/5){
+                        grayPower[curGPower].Activate();
+                    }
+                    else grayPower[curGPower].SetClicked(0);
+                }
+                else if(!clicked&&enemy!=10){
                     // std::cout<<move<<' '<<side<<'\n';
                     if((moveCount&1)==grid[mouseX][mouseY]/5){
                         clicked=1;
@@ -855,12 +894,12 @@ void update(){
                             }
                         }
                         if(side){
-                            blackPower[curBPower].UpdateCooldown(0);
+                            blackPower[curBPower].UpdateCooldown();
                             playerGray.Update(1);
                             turnText.Update("Black's Turn",BLACK);
                         }
                         else{
-                            grayPower[curGPower].UpdateCooldown(0);
+                            grayPower[curGPower].UpdateCooldown();
                             playerBlack.Update(1);
                             turnText.Update("Gray's Turn",GRAY);
                         }
@@ -1091,6 +1130,7 @@ void initGame(){
     blackPower[0].Init(
         {0,0,60,60},
         "Make one piece immune to enemy capture\nCooldown: 10 turns\nDuration: 2 turns",
+        1,
         {menuBox.x-70,menuBox.y},
         24,
         10,
@@ -1105,6 +1145,7 @@ void initGame(){
     grayPower[0].Init(
         {0,0,60,60},
         "Make one piece immune to enemy capture\nCooldown: 10 turns\nDuration: 2 turns",
+        1,
         {menuBox.x+menuBox.width+10,menuBox.y},
         24,
         10,
@@ -1119,6 +1160,7 @@ void initGame(){
     blackPower[1].Init(
         {124,0,60,60},
         "Make one enemy piece unable to move\nCooldown: 10 turns\nDuration: 2 turns",
+        0,
         {menuBox.x-70,menuBox.y+70},
         24,
         10,
@@ -1132,6 +1174,7 @@ void initGame(){
     grayPower[1].Init(
         {124,0,60,60},
         "Make one enemy piece unable to move\nCooldown: 10 turns\nDuration: 2 turns",
+        0,
         {menuBox.x+menuBox.width+10,menuBox.y+70},
         24,
         10,
@@ -1145,6 +1188,7 @@ void initGame(){
     blackPower[2].Init(
         {186,0,60,60},
         "Swap the positions of your own two pieces\nCooldown: 10 turns\nDuration: 2 turns",
+        1,
         {menuBox.x-70,menuBox.y+140},
         24,
         10,
@@ -1158,6 +1202,7 @@ void initGame(){
     grayPower[2].Init(
         {186,0,60,60},
         "Swap the positions of your own two pieces\nCooldown: 10 turns\nDuration: 2 turns",
+        1,
         {menuBox.x+menuBox.width+10,menuBox.y+140},
         24,
         10,
