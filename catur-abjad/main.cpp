@@ -244,12 +244,13 @@ private:
     Vector2 pos;
     int cooldown,currentCooldown;
     int duration,currentDuration;
+    std::pair<bool,bool> usage;
+    bool once;
     bool active;
     bool hover;
     bool clicked;
-    bool own;
 public:
-    void Init(const Rectangle box,const std::string textInput,const bool o,Vector2 position,const int fontSizeInput,const int cd,const int dur,const Color textColor,const Color col,const std::pair<bool,bool> central, const std::pair<bool,bool> start,const bool rec){
+    void Init(const Rectangle box,const std::string textInput,const std::pair<bool,bool> u,Vector2 position,const int fontSizeInput,const int cd,const int dur,const Color textColor,const Color col,const std::pair<bool,bool> central, const std::pair<bool,bool> start,const bool rec){
         powerBox=box;
         pos=position;
         cooldown=cd;
@@ -259,10 +260,11 @@ public:
         active=0;
         hover=0;
         clicked=0;
-        own=o;
+        usage=u;
+        once=!u.second;
         position.y-=100;
         descriptionBox.Init(textInput,position,fontSizeInput,textColor,col,central,start,rec);
-        instruction.Init(own?"Click on your own pieces":"Click on enemy pieces",{screenWidth/2,630},10,textColor,col,{1,1},{0,0},1);
+        instruction.Init(TextFormat("Click on %s pieces %s",usage.first?"your own":"enemy",usage.second?"twice":"once"),{screenWidth/2,630},10,textColor,col,{1,1},{0,0},1);
     }
 
     void Draw(bool game,bool side){
@@ -285,9 +287,15 @@ public:
     }
 
     void Activate(){
-        active=0;
-        clicked=0;
-        currentCooldown=cooldown;
+        if(once){
+            active=0;
+            clicked=0;
+            currentCooldown=cooldown;
+            SetOnce();
+        }
+        else{
+            once=1;
+        }
     }
 
     inline Rectangle GetBound(){
@@ -306,6 +314,10 @@ public:
         return active;
     }
 
+    inline bool IsOnce(){
+        return once;
+    }
+
     inline bool IsHover(){
         return hover;
     }
@@ -315,11 +327,19 @@ public:
     }
 
     inline bool IsOwn(){
-        return own;
+        return usage.first;
+    }
+
+    inline bool IsTwice(){
+        return usage.second;
     }
 
     inline void SetClicked(bool click){
         clicked=click;
+    }
+
+    inline void SetOnce(){
+        once=!usage.second;
     }
 
     inline void SetActive(bool act){
@@ -744,16 +764,22 @@ void update(){
                     else if(enemy!=10&&!blackPower[curBPower].IsOwn()&&(moveCount&1)!=enemy/5){
                         blackPower[curBPower].Activate();
                     }
-                    else blackPower[curBPower].SetClicked(0);
+                    else{
+                        blackPower[curBPower].SetClicked(0);
+                        blackPower[curBPower].SetOnce();
+                    }
                 }
-                else if(enemy!=10&&grayPower[curGPower].IsClicked()){
+                else if(grayPower[curGPower].IsClicked()){
                     if(enemy!=10&&grayPower[curGPower].IsOwn()&&(moveCount&1)==enemy/5){
                         grayPower[curGPower].Activate();
                     }
                     else if(enemy!=10&&!grayPower[curGPower].IsOwn()&&(moveCount&1)!=enemy/5){
                         grayPower[curGPower].Activate();
                     }
-                    else grayPower[curGPower].SetClicked(0);
+                    else{
+                        grayPower[curGPower].SetClicked(0);
+                        grayPower[curGPower].SetOnce();
+                    }
                 }
                 else if(!clicked&&enemy!=10){
                     // std::cout<<move<<' '<<side<<'\n';
@@ -1130,7 +1156,7 @@ void initGame(){
     blackPower[0].Init(
         {0,0,60,60},
         "Make one piece immune to enemy capture\nCooldown: 10 turns\nDuration: 2 turns",
-        1,
+        {1,0},
         {menuBox.x-70,menuBox.y},
         24,
         10,
@@ -1145,7 +1171,7 @@ void initGame(){
     grayPower[0].Init(
         {0,0,60,60},
         "Make one piece immune to enemy capture\nCooldown: 10 turns\nDuration: 2 turns",
-        1,
+        {1,0},
         {menuBox.x+menuBox.width+10,menuBox.y},
         24,
         10,
@@ -1160,7 +1186,7 @@ void initGame(){
     blackPower[1].Init(
         {124,0,60,60},
         "Make one enemy piece unable to move\nCooldown: 10 turns\nDuration: 2 turns",
-        0,
+        {0,0},
         {menuBox.x-70,menuBox.y+70},
         24,
         10,
@@ -1174,7 +1200,7 @@ void initGame(){
     grayPower[1].Init(
         {124,0,60,60},
         "Make one enemy piece unable to move\nCooldown: 10 turns\nDuration: 2 turns",
-        0,
+        {0,0},
         {menuBox.x+menuBox.width+10,menuBox.y+70},
         24,
         10,
@@ -1188,7 +1214,7 @@ void initGame(){
     blackPower[2].Init(
         {186,0,60,60},
         "Swap the positions of your own two pieces\nCooldown: 10 turns\nDuration: 2 turns",
-        1,
+        {1,1},
         {menuBox.x-70,menuBox.y+140},
         24,
         10,
@@ -1202,7 +1228,7 @@ void initGame(){
     grayPower[2].Init(
         {186,0,60,60},
         "Swap the positions of your own two pieces\nCooldown: 10 turns\nDuration: 2 turns",
-        1,
+        {1,1},
         {menuBox.x+menuBox.width+10,menuBox.y+140},
         24,
         10,
