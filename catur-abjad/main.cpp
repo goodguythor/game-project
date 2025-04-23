@@ -249,6 +249,7 @@ private:
     bool active;
     bool hover;
     bool clicked;
+    bool usable;
 public:
     void Init(const Rectangle box,const std::string textInput,const std::pair<bool,bool> u,Vector2 position,const int fontSizeInput,const int cd,const int dur,const Color textColor,const Color col,const std::pair<bool,bool> central, const std::pair<bool,bool> start,const bool rec){
         powerBox=box;
@@ -261,6 +262,7 @@ public:
         hover=0;
         clicked=0;
         usage=u;
+        usable=0;
         once=!u.second;
         position.y-=100;
         descriptionBox.Init(textInput,position,fontSizeInput,textColor,col,central,start,rec);
@@ -276,19 +278,25 @@ public:
         }
         if(clicked) instruction.Draw();
         if(hover) game?descriptionBox.Draw(side):descriptionBox.Draw();
-        if(active) DrawRectangleLinesEx({posX,posY,60,60},2,BLACK);
+        if(usable) DrawRectangleLinesEx({posX,posY,60,60},2,BLACK);
         DrawTextureRec(atlas,powerBox,{posX,posY},WHITE);
         if(currentCooldown>0) DrawTextEx(GetFontDefault(),std::to_string(currentCooldown).c_str(),{posX+30,posY+30},30,1,side?GREEN:BLUE);
     }   
 
     void UpdateCooldown(){
         currentCooldown--;
-        if(currentCooldown==0) active=1;
+        if(currentCooldown==0) usable=1;
+    }
+
+    void UpdateDuration(){
+        currentDuration++;
+        if(duration==currentDuration) SetActive(0);
     }
 
     void Activate(){
         if(once){
-            active=0;
+            SetActive(1);
+            SetUsable(0);
             clicked=0;
             currentCooldown=cooldown;
             SetOnce();
@@ -308,6 +316,10 @@ public:
 
     inline int GetDuration(){
         return currentDuration;
+    }
+
+    inline bool IsUsable(){
+        return usable;
     }
 
     inline bool IsActive(){
@@ -334,6 +346,16 @@ public:
         return usage.second;
     }
 
+    inline void Reset(){
+        currentCooldown=0;
+        currentDuration=0;
+        active=0;
+        usable=1;
+        hover=0;
+        clicked=0;
+        once=!usage.second;
+    }
+
     inline void SetClicked(bool click){
         clicked=click;
     }
@@ -342,9 +364,12 @@ public:
         once=!usage.second;
     }
 
+    inline void SetUsable(bool use){
+        usable=use;
+    }
+
     inline void SetActive(bool act){
-        if(act){
-            currentCooldown=0;
+        if(!act){
             currentDuration=0;
         }
         active=act;
@@ -413,8 +438,10 @@ void clearGame(){
     cntR=0; 
     for(int i=0;i<5;i++) graveyard[i]={0,0};
     moveCount=0;
-    grayPower[curGPower].SetActive(1);
-    blackPower[curBPower].SetActive(1);
+    grayPower[curGPower].Reset();
+    blackPower[curBPower].Reset();
+    turnText.Update("Black's Turn",BLACK);
+    turnCountText.Update("Turn 1",BLACK);
 }
 
 void handleMusicBox(const Vector2 &mousePos){
@@ -721,14 +748,14 @@ void update(){
     }
     Vector2 mousePos = GetMousePosition();
     if(CheckCollisionPointRec(mousePos,{210,630,60,60})){
-        if(!(moveCount&1)&&blackPower[curBPower].IsActive()&&IsMouseButtonPressed(MOUSE_LEFT_BUTTON)){
+        if(!(moveCount&1)&&blackPower[curBPower].IsUsable()&&IsMouseButtonPressed(MOUSE_LEFT_BUTTON)){
             blackPower[curBPower].SetClicked(1);
         }
         blackPower[curBPower].SetHover(1);
     }
     else blackPower[curBPower].SetHover(0);
     if(CheckCollisionPointRec(mousePos,{450,630,60,60})){
-        if((moveCount&1)&&grayPower[curGPower].IsActive()&&IsMouseButtonPressed(MOUSE_LEFT_BUTTON)){
+        if((moveCount&1)&&grayPower[curGPower].IsUsable()&&IsMouseButtonPressed(MOUSE_LEFT_BUTTON)){
             grayPower[curGPower].SetClicked(1);
         }
         grayPower[curGPower].SetHover(1);
@@ -760,9 +787,23 @@ void update(){
                 if(blackPower[curBPower].IsClicked()){
                     if(enemy!=10&&blackPower[curBPower].IsOwn()&&(moveCount&1)==enemy/5){
                         blackPower[curBPower].Activate();
+                        if(blackPower[curBPower].IsActive()){
+                            playerBlack.Update(1);
+                            turnText.Update("Gray's Turn",GRAY);
+                            moveCount++;
+                            std::string newText=TextFormat("Turn %d",moveCount+1);
+                            turnCountText.Update(newText,GRAY);
+                        }
                     }
                     else if(enemy!=10&&!blackPower[curBPower].IsOwn()&&(moveCount&1)!=enemy/5){
                         blackPower[curBPower].Activate();
+                        if(blackPower[curBPower].IsActive()){
+                            playerBlack.Update(1);
+                            turnText.Update("Gray's Turn",GRAY);
+                            moveCount++;
+                            std::string newText=TextFormat("Turn %d",moveCount+1);
+                            turnCountText.Update(newText,GRAY);
+                        }
                     }
                     else{
                         blackPower[curBPower].SetClicked(0);
@@ -772,9 +813,23 @@ void update(){
                 else if(grayPower[curGPower].IsClicked()){
                     if(enemy!=10&&grayPower[curGPower].IsOwn()&&(moveCount&1)==enemy/5){
                         grayPower[curGPower].Activate();
+                        if(grayPower[curGPower].IsActive()){
+                            playerGray.Update(1);
+                            turnText.Update("Black's Turn",BLACK);
+                            moveCount++;
+                            std::string newText=TextFormat("Turn %d",moveCount+1);
+                            turnCountText.Update(newText,BLACK);
+                        }
                     }
                     else if(enemy!=10&&!grayPower[curGPower].IsOwn()&&(moveCount&1)!=enemy/5){
                         grayPower[curGPower].Activate();
+                        if(grayPower[curGPower].IsActive()){
+                            playerGray.Update(1);
+                            turnText.Update("Black's Turn",BLACK);
+                            moveCount++;
+                            std::string newText=TextFormat("Turn %d",moveCount+1);
+                            turnCountText.Update(newText,BLACK);
+                        }
                     }
                     else{
                         grayPower[curGPower].SetClicked(0);
@@ -921,11 +976,13 @@ void update(){
                         }
                         if(side){
                             blackPower[curBPower].UpdateCooldown();
+                            blackPower[curBPower].UpdateDuration();
                             playerGray.Update(1);
                             turnText.Update("Black's Turn",BLACK);
                         }
                         else{
                             grayPower[curGPower].UpdateCooldown();
+                            grayPower[curGPower].UpdateDuration();
                             playerBlack.Update(1);
                             turnText.Update("Gray's Turn",GRAY);
                         }
@@ -969,8 +1026,8 @@ void updateMenu(){
     for(int i=0;i<3;i++){
         if(CheckCollisionPointRec(mousePos,blackPower[i].GetBound())){
             if(IsMouseButtonPressed(MOUSE_LEFT_BUTTON)){
-                blackPower[curBPower].SetActive(0);
-                blackPower[i].SetActive(1);
+                blackPower[curBPower].SetUsable(0);
+                blackPower[i].SetUsable(1);
                 curBPower=i;
             }
             blackPower[i].SetHover(1);
@@ -978,8 +1035,8 @@ void updateMenu(){
         else blackPower[i].SetHover(0);
         if(CheckCollisionPointRec(mousePos,grayPower[i].GetBound())){
             if(IsMouseButtonPressed(MOUSE_LEFT_BUTTON)){
-                grayPower[curGPower].SetActive(0);
-                grayPower[i].SetActive(1);
+                grayPower[curGPower].SetUsable(0);
+                grayPower[i].SetUsable(1);
                 curGPower=i;
             }
             grayPower[i].SetHover(1);
@@ -1160,14 +1217,14 @@ void initGame(){
         {menuBox.x-70,menuBox.y},
         24,
         10,
-        2,
+        1,
         WHITE,
         BLACK,
         {0,0},
         {1,1},
         1
     );
-    blackPower[0].SetActive(1);
+    blackPower[0].SetUsable(1);
     grayPower[0].Init(
         {0,0,60,60},
         "Make one piece immune to enemy capture\nCooldown: 10 turns\nDuration: 2 turns",
@@ -1175,14 +1232,14 @@ void initGame(){
         {menuBox.x+menuBox.width+10,menuBox.y},
         24,
         10,
-        2,
+        1,
         WHITE,
         BLACK,
         {0,0},
         {0,1},
         1
     );
-    grayPower[0].SetActive(1);
+    grayPower[0].SetUsable(1);
     blackPower[1].Init(
         {124,0,60,60},
         "Make one enemy piece unable to move\nCooldown: 10 turns\nDuration: 2 turns",
@@ -1190,7 +1247,7 @@ void initGame(){
         {menuBox.x-70,menuBox.y+70},
         24,
         10,
-        2,
+        1,
         WHITE,
         BLACK,
         {0,0},
@@ -1204,7 +1261,7 @@ void initGame(){
         {menuBox.x+menuBox.width+10,menuBox.y+70},
         24,
         10,
-        2,
+        1,
         WHITE,
         BLACK,
         {0,0},
@@ -1218,7 +1275,7 @@ void initGame(){
         {menuBox.x-70,menuBox.y+140},
         24,
         10,
-        2,
+        1,
         WHITE,
         BLACK,
         {0,0},
@@ -1232,7 +1289,7 @@ void initGame(){
         {menuBox.x+menuBox.width+10,menuBox.y+140},
         24,
         10,
-        2,
+        1,
         WHITE,
         BLACK,
         {0,0},
