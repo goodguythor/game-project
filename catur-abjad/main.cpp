@@ -26,7 +26,9 @@ enum class GameState{
 };
 
 Texture2D atlas;
+std::vector<std::vector<int>> grid(8,std::vector<int>(8));
 std::vector<std::pair<Vector2,int>> bGravePos(16),gGravePos(16);
+// Vector2 lastClicked;
 const char* characters="CIXTU";
 float timer, holdTimer, blinkTimer=0, pauseTime = 0;
 const int screenWidth = 720;
@@ -47,6 +49,8 @@ bool musicButtonActive = 0;
 bool menuBoxActive = 0;
 bool isHold=0;
 bool isBlinking=0;
+bool blackFreeze=0,grayFreeze=0;
+bool blackShield=0,grayShield=0;
 
 class GameText{
 private:
@@ -242,6 +246,7 @@ private:
     Button instruction;
     Rectangle powerBox;
     Vector2 pos;
+    std::pair<int,int> last;
     int cooldown,currentCooldown;
     int duration,currentDuration;
     std::pair<bool,bool> usage;
@@ -252,6 +257,7 @@ private:
     bool usable;
 public:
     void Init(const Rectangle box,const std::string textInput,const std::pair<bool,bool> u,Vector2 position,const int fontSizeInput,const int cd,const int dur,const Color textColor,const Color col,const std::pair<bool,bool> central, const std::pair<bool,bool> start,const bool rec){
+        last={-1,-1};
         powerBox=box;
         pos=position;
         cooldown=cd;
@@ -290,20 +296,42 @@ public:
 
     void UpdateDuration(){
         currentDuration++;
-        if(duration==currentDuration) SetActive(0);
+        // std::cout<<currentDuration<<' '<<duration<<'\n';
+        if(duration==currentDuration){
+            currentDuration=0;
+            if(blackFreeze||grayFreeze){
+                grid[last.first][last.second]-=30;
+                blackFreeze=0;
+                grayFreeze=0;
+            }
+            else if(blackShield||grayShield){
+                grid[last.first][last.second]-=20;
+                blackShield=0;
+                grayShield=0;
+            }
+            last={-1,-1};
+            active=0;
+        }
     }
 
-    void Activate(){
+    void Activate(int gridX,int gridY){
         if(once){
+            std::pair cur={gridX,gridY};
+            if(cur==last){
+                SetOnce();
+                clicked=0;
+                last={-1,-1};
+                return;
+            }
             SetActive(1);
             SetUsable(0);
             clicked=0;
             currentCooldown=cooldown;
-            SetOnce();
         }
         else{
             once=1;
         }
+        last={gridX,gridY};
     }
 
     inline Rectangle GetBound(){
@@ -316,6 +344,14 @@ public:
 
     inline int GetDuration(){
         return currentDuration;
+    }
+
+    inline int GetLastX(){
+        return last.first;
+    }
+
+    inline int GetLastY(){
+        return last.second;
     }
 
     inline bool IsUsable(){
@@ -353,7 +389,12 @@ public:
         usable=1;
         hover=0;
         clicked=0;
+        last={-1,-1};
         once=!usage.second;
+    }
+
+    inline void SetLast(){
+        last={-1,-1};
     }
 
     inline void SetClicked(bool click){
@@ -383,7 +424,6 @@ public:
 PlayerClock playerBlack, playerGray;
 std::vector<Music> song;
 std::vector<std::string> songList;
-std::vector<std::vector<int>> grid(8,std::vector<int>(8));
 std::pair<int,int> graveyard[5] = {{0,0},{0,0},{0,0},{0,0},{0,0}};
 std::vector<Vector2> pieceSize;
 Vector2 piecePos[8][8];
@@ -786,54 +826,72 @@ void update(){
                 // std::cout<<piece<<'\n';
                 if(blackPower[curBPower].IsClicked()){
                     if(enemy!=10&&blackPower[curBPower].IsOwn()&&(moveCount&1)==enemy/5){
-                        blackPower[curBPower].Activate();
-                        if(blackPower[curBPower].IsActive()){
-                            playerBlack.Update(1);
-                            turnText.Update("Gray's Turn",GRAY);
-                            moveCount++;
-                            std::string newText=TextFormat("Turn %d",moveCount+1);
-                            turnCountText.Update(newText,GRAY);
-                        }
+                        blackPower[curBPower].Activate(mouseX,mouseY);
                     }
                     else if(enemy!=10&&!blackPower[curBPower].IsOwn()&&(moveCount&1)!=enemy/5){
-                        blackPower[curBPower].Activate();
-                        if(blackPower[curBPower].IsActive()){
-                            playerBlack.Update(1);
-                            turnText.Update("Gray's Turn",GRAY);
-                            moveCount++;
-                            std::string newText=TextFormat("Turn %d",moveCount+1);
-                            turnCountText.Update(newText,GRAY);
-                        }
+                        blackPower[curBPower].Activate(mouseX,mouseY);
                     }
                     else{
                         blackPower[curBPower].SetClicked(0);
                         blackPower[curBPower].SetOnce();
                     }
+                    if(blackPower[curBPower].IsActive()){
+                        int lastX=blackPower[curBPower].GetLastX(),lastY=blackPower[curBPower].GetLastY();
+                        if(curBPower==0){
+                            grid[lastX][lastY]+=20;
+                            blackShield=1;
+                        }
+                        else if(curBPower==1){
+                            grid[lastX][lastY]+=30;
+                            blackFreeze=1;
+                        }
+                        else if(curBPower==2){
+                            std::swap(grid[lastX][lastY],grid[mouseX][mouseY]);
+                        }
+                        if(grayPower[curGPower].IsActive()){
+                            grayPower[curGPower].UpdateCooldown();
+                            grayPower[curGPower].UpdateDuration();
+                        }
+                        playerBlack.Update(1);
+                        turnText.Update("Gray's Turn",GRAY);
+                        moveCount++;
+                        std::string newText=TextFormat("Turn %d",moveCount+1);
+                        turnCountText.Update(newText,GRAY);
+                    }
                 }
                 else if(grayPower[curGPower].IsClicked()){
                     if(enemy!=10&&grayPower[curGPower].IsOwn()&&(moveCount&1)==enemy/5){
-                        grayPower[curGPower].Activate();
-                        if(grayPower[curGPower].IsActive()){
-                            playerGray.Update(1);
-                            turnText.Update("Black's Turn",BLACK);
-                            moveCount++;
-                            std::string newText=TextFormat("Turn %d",moveCount+1);
-                            turnCountText.Update(newText,BLACK);
-                        }
+                        grayPower[curGPower].Activate(mouseX,mouseY);
                     }
                     else if(enemy!=10&&!grayPower[curGPower].IsOwn()&&(moveCount&1)!=enemy/5){
-                        grayPower[curGPower].Activate();
-                        if(grayPower[curGPower].IsActive()){
-                            playerGray.Update(1);
-                            turnText.Update("Black's Turn",BLACK);
-                            moveCount++;
-                            std::string newText=TextFormat("Turn %d",moveCount+1);
-                            turnCountText.Update(newText,BLACK);
-                        }
+                        grayPower[curGPower].Activate(mouseX,mouseY);
                     }
                     else{
                         grayPower[curGPower].SetClicked(0);
                         grayPower[curGPower].SetOnce();
+                    }
+                    if(grayPower[curGPower].IsActive()){
+                        int lastX=grayPower[curGPower].GetLastX(),lastY=grayPower[curGPower].GetLastY();
+                        if(curGPower==0){
+                            grid[lastX][lastY]+=20;
+                            grayShield=1;
+                        }
+                        else if(curGPower==1){
+                            grid[lastX][lastY]+=30;
+                            grayFreeze=1;
+                        }
+                        else if(curGPower==2){
+                            std::swap(grid[lastX][lastY],grid[mouseX][mouseY]);
+                        }
+                        if(blackPower[curBPower].IsActive()){
+                            blackPower[curBPower].UpdateCooldown();
+                            blackPower[curBPower].UpdateDuration();
+                        }
+                        playerGray.Update(1);
+                        turnText.Update("Black's Turn",BLACK);
+                        moveCount++;
+                        std::string newText=TextFormat("Turn %d",moveCount+1);
+                        turnCountText.Update(newText,BLACK);
                     }
                 }
                 else if(!clicked&&enemy!=10){
@@ -1212,7 +1270,7 @@ void initGame(){
     songText.Init("Song: ganyangffff.mp3",{screenWidth/2,315},30,WHITE,{1,0},{0,1});
     blackPower[0].Init(
         {0,0,60,60},
-        "Make one piece immune to enemy capture\nCooldown: 10 turns\nDuration: 2 turns",
+        "Make one piece immune to enemy capture for 1 turn\nCooldown: 10 turns",
         {1,0},
         {menuBox.x-70,menuBox.y},
         24,
@@ -1227,7 +1285,7 @@ void initGame(){
     blackPower[0].SetUsable(1);
     grayPower[0].Init(
         {0,0,60,60},
-        "Make one piece immune to enemy capture\nCooldown: 10 turns\nDuration: 2 turns",
+        "Make one piece immune to enemy capture for 1 turn\nCooldown: 10 turns",
         {1,0},
         {menuBox.x+menuBox.width+10,menuBox.y},
         24,
@@ -1242,7 +1300,7 @@ void initGame(){
     grayPower[0].SetUsable(1);
     blackPower[1].Init(
         {124,0,60,60},
-        "Make one enemy piece unable to move\nCooldown: 10 turns\nDuration: 2 turns",
+        "Make one enemy piece unable to move for 1 turn\nCooldown: 10 turns",
         {0,0},
         {menuBox.x-70,menuBox.y+70},
         24,
@@ -1256,7 +1314,7 @@ void initGame(){
     );
     grayPower[1].Init(
         {124,0,60,60},
-        "Make one enemy piece unable to move\nCooldown: 10 turns\nDuration: 2 turns",
+        "Make one enemy piece unable to move for 1 turn\nCooldown: 10 turns",
         {0,0},
         {menuBox.x+menuBox.width+10,menuBox.y+70},
         24,
@@ -1270,7 +1328,7 @@ void initGame(){
     );
     blackPower[2].Init(
         {186,0,60,60},
-        "Swap the positions of your own two pieces\nCooldown: 10 turns\nDuration: 2 turns",
+        "Swap the positions of your own two pieces\nCooldown: 10 turns",
         {1,1},
         {menuBox.x-70,menuBox.y+140},
         24,
@@ -1284,7 +1342,7 @@ void initGame(){
     );
     grayPower[2].Init(
         {186,0,60,60},
-        "Swap the positions of your own two pieces\nCooldown: 10 turns\nDuration: 2 turns",
+        "Swap the positions of your own two pieces\nCooldown: 10 turns",
         {1,1},
         {menuBox.x+menuBox.width+10,menuBox.y+140},
         24,
