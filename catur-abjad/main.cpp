@@ -299,17 +299,6 @@ public:
         // std::cout<<currentDuration<<' '<<duration<<'\n';
         if(duration==currentDuration){
             currentDuration=0;
-            if(blackFreeze||grayFreeze){
-                grid[last.first][last.second]-=30;
-                blackFreeze=0;
-                grayFreeze=0;
-            }
-            else if(blackShield||grayShield){
-                grid[last.first][last.second]-=20;
-                blackShield=0;
-                grayShield=0;
-            }
-            last={-1,-1};
             active=0;
         }
     }
@@ -726,7 +715,8 @@ void draw(){
             if(grid[i][j]==10) continue;
             bool side=grid[i][j]/5;
             // std::cout<<grid[i][j]<<'\n';
-            char temp[2]={characters[grid[i][j]%5], '\0'};
+            char temp[2]={characters[(grid[i][j]+10)%5], '\0'};
+            if(temp[0]!='C'&&temp[0]!='I'&&temp[0]!='X'&&temp[0]!='T'&&temp[0]!='U') std::cout<<i<<' '<<j<<' '<<grid[i][j]<<' '<<temp<<'\n';
             DrawTextEx(GetFontDefault(),temp,piecePos[i][j],30,1,(clicked && x == i && y == j) ? (side ? GREEN : BLUE) : (side ? GRAY : BLACK));
         }
     }
@@ -851,6 +841,14 @@ void update(){
                         if(grayPower[curGPower].IsActive()){
                             grayPower[curGPower].UpdateCooldown();
                             grayPower[curGPower].UpdateDuration();
+                            if(!grayPower[curGPower].IsActive()){
+                                int dif=grayFreeze?30:20;
+                                grid[grayPower[curGPower].GetLastX()][grayPower[curGPower].GetLastY()]-=dif;
+                                // std::cout<<grid[grayPower[curGPower].GetLastX()][grayPower[curGPower].GetLastY()]<<'\n';
+                                grayShield=0;
+                                grayFreeze=0;
+                                grayPower[curGPower].SetLast();
+                            }
                         }
                         playerBlack.Update(1);
                         turnText.Update("Gray's Turn",GRAY);
@@ -886,6 +884,14 @@ void update(){
                         if(blackPower[curBPower].IsActive()){
                             blackPower[curBPower].UpdateCooldown();
                             blackPower[curBPower].UpdateDuration();
+                            if(!blackPower[curBPower].IsActive()){
+                                int dif=blackFreeze?30:20;
+                                grid[blackPower[curBPower].GetLastX()][blackPower[curBPower].GetLastY()]-=dif;
+                                // std::cout<<grid[blackPower[curBPower].GetLastX()][blackPower[curBPower].GetLastY()]<<'\n';
+                                blackFreeze=0;
+                                blackShield=0;
+                                blackPower[curBPower].SetLast();
+                            }
                         }
                         playerGray.Update(1);
                         turnText.Update("Black's Turn",BLACK);
@@ -1035,12 +1041,28 @@ void update(){
                         if(side){
                             blackPower[curBPower].UpdateCooldown();
                             blackPower[curBPower].UpdateDuration();
+                            if(!blackPower[curBPower].IsActive()){
+                                int dif=blackFreeze?30:20;
+                                grid[blackPower[curBPower].GetLastX()][blackPower[curBPower].GetLastY()]-=dif;
+                                // std::cout<<grid[blackPower[curBPower].GetLastX()][blackPower[curBPower].GetLastY()]<<'\n';
+                                blackFreeze=0;
+                                blackShield=0;
+                                blackPower[curBPower].SetLast();
+                            }
                             playerGray.Update(1);
                             turnText.Update("Black's Turn",BLACK);
                         }
                         else{
                             grayPower[curGPower].UpdateCooldown();
                             grayPower[curGPower].UpdateDuration();
+                            if(!grayPower[curGPower].IsActive()){
+                                int dif=grayFreeze?30:20;
+                                grid[grayPower[curGPower].GetLastX()][grayPower[curGPower].GetLastY()]-=dif;
+                                // std::cout<<grid[grayPower[curGPower].GetLastX()][grayPower[curGPower].GetLastY()]<<'\n';
+                                grayShield=0;
+                                grayFreeze=0;
+                                grayPower[curGPower].SetLast();
+                            }
                             playerBlack.Update(1);
                             turnText.Update("Gray's Turn",GRAY);
                         }
@@ -1404,6 +1426,7 @@ int main(){
         }
         EndDrawing();
     }
+    UnloadTexture(atlas);
     for(Music &i:song) UnloadMusicStream(i);
     CloseAudioDevice();
     CloseWindow();
