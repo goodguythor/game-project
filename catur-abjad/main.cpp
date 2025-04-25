@@ -319,8 +319,9 @@ public:
         }
         else{
             once=1;
+            last={gridX,gridY};
         }
-        last={gridX,gridY};
+        if(!usage.second) last={gridX,gridY}; 
     }
 
     inline Rectangle GetBound(){
@@ -384,6 +385,10 @@ public:
 
     inline void SetLast(){
         last={-1,-1};
+    }
+
+    inline void SetLast(std::pair<int,int> l){
+        last=l;
     }
 
     inline void SetClicked(bool click){
@@ -598,30 +603,39 @@ void init(){
 
 void draw(){
     if(clicked){
+        // std::cout<<x<<' '<<y<<'\n';
         int piece=grid[x][y]%5;
-        bool side=grid[x][y]/5;
+        bool side=(grid[x][y]%10)/5;
         DrawRectangle(posX,posY,60,60,WHITE);
+        int north=y>0?(grid[x][y-1]==10?10:grid[x][y-1]%10)/5:-1;
+        int neast=y>0&&x<7?(grid[x+1][y-1]==10?10:grid[x+1][y-1]%10)/5:-1;
+        int east=x<7?(grid[x+1][y]==10?10:grid[x+1][y]%10)/5:-1;
+        int seast=x<7&&y<7?(grid[x+1][y+1]==10?10:grid[x+1][y+1]%10)/5:-1;
+        int south=y<7?(grid[x][y+1]==10?10:grid[x][y+1]%10)/5:-1;
+        int swest=x>0&&y<7?(grid[x-1][y+1]==10?10:grid[x-1][y+1]%10)/5:-1;
+        int west=x>0?(grid[x-1][y]==10?10:grid[x-1][y]%10)/5:-1;
+        int nwest=x>0&&y>0?(grid[x-1][y-1]==10?10:grid[x-1][y-1]%10)/5:-1;
         if(piece==1){
-            if(x>0&&grid[x-1][y]/5!=side) DrawRectangle(posX-60,posY,60,60,WHITE);
-            if(x<7&&grid[x+1][y]/5!=side) DrawRectangle(posX+60,posY,60,60,WHITE);
-            if(y>0&&grid[x][y-1]/5!=side) DrawRectangle(posX,posY-60,60,60,WHITE);
-            if(y<7&&grid[x][y+1]/5!=side) DrawRectangle(posX,posY+60,60,60,WHITE);
+            if(x>0&&west!=side) DrawRectangle(posX-60,posY,60,60,WHITE);
+            if(x<7&&east!=side) DrawRectangle(posX+60,posY,60,60,WHITE);
+            if(y>0&&north!=side) DrawRectangle(posX,posY-60,60,60,WHITE);
+            if(y<7&&south!=side) DrawRectangle(posX,posY+60,60,60,WHITE);
         }
         else if(piece==0){
             if(x>0){
-                if(y>0&&grid[x-1][y-1]/5!=side) DrawRectangle(posX-60,posY-60,60,60,WHITE);
-                if(y<7&&grid[x-1][y+1]/5!=side) DrawRectangle(posX-60,posY+60,60,60,WHITE); 
+                if(y>0&&nwest!=side) DrawRectangle(posX-60,posY-60,60,60,WHITE);
+                if(y<7&&swest!=side) DrawRectangle(posX-60,posY+60,60,60,WHITE); 
             }
             if(x<7){
-                if(y>0&&grid[x+1][y-1]/5!=side) DrawRectangle(posX+60,posY-60,60,60,WHITE);
-                if(y<7&&grid[x+1][y+1]/5!=side) DrawRectangle(posX+60,posY+60,60,60,WHITE); 
+                if(y>0&&neast!=side) DrawRectangle(posX+60,posY-60,60,60,WHITE);
+                if(y<7&&seast!=side) DrawRectangle(posX+60,posY+60,60,60,WHITE); 
             }
         } 
         else if(piece==2){
             if(x>0){
                 for(int i=1;x-i>=0&&i<=y;i++){
                     int place=grid[x-i][y-i];
-                    if(place/5!=side){
+                    if((place%10)/5!=side){
                         DrawRectangle(posX-60*i,posY-60*i,60,60,WHITE);
                         if(place!=10) break;
                     } 
@@ -629,7 +643,7 @@ void draw(){
                 }
                 for(int i=1;x-i>=0&&i<8-y;i++){
                     int place=grid[x-i][y+i];
-                    if(place/5!=side){
+                    if((place%10)/5!=side){
                         DrawRectangle(posX-60*i,posY+60*i,60,60,WHITE);
                         if(place!=10) break;
                     } 
@@ -639,7 +653,7 @@ void draw(){
             if(x<7){
                 for(int i=1;x+i<8&&i<=y;i++){
                     int place=grid[x+i][y-i];
-                    if(place/5!=side){
+                    if((place%10)/5!=side){
                         DrawRectangle(posX+60*i,posY-60*i,60,60,WHITE);
                         if(place!=10) break;
                     }
@@ -647,7 +661,7 @@ void draw(){
                 }
                 for(int i=1;x+i<8&&i<8-y;i++){
                     int place=grid[x+i][y+i];
-                    if(place/5!=side){
+                    if((place%10)/5!=side){
                         DrawRectangle(posX+60*i,posY+60*i,60,60,WHITE);
                         if(place!=10) break;
                     }
@@ -658,7 +672,7 @@ void draw(){
         else if(piece==3){
             for(int i=1;i<=y;i++){
                 int place=grid[x][y-i];
-                if(place/5!=side){
+                if((place%10)/5!=side){
                     DrawRectangle(posX,posY-60*i,60,60,WHITE);
                     if(place!=10) break;
                 }
@@ -666,7 +680,7 @@ void draw(){
             }
             for(int i=1;i<8-y;i++){
                 int place=grid[x][y+i];
-                if(place/5!=side){
+                if((place%10)/5!=side){
                     DrawRectangle(posX,posY+60*i,60,60,WHITE);
                     if(place!=10) break;
                 }
@@ -674,7 +688,7 @@ void draw(){
             }
             for(int i=1;i<=x;i++){
                 int place=grid[x-i][y];
-                if(place/5!=side){
+                if((place%10)/5!=side){
                     DrawRectangle(posX-60*i,posY,60,60,WHITE);
                     if(place!=10) break;
                 }
@@ -682,7 +696,7 @@ void draw(){
             }
             for(int i=1;i<8-x;i++){
                 int place=grid[x+i][y];
-                if(place/5!=side){
+                if((place%10)/5!=side){
                     DrawRectangle(posX+60*i,posY,60,60,WHITE);
                     if(place!=10) break;
                 }
@@ -691,17 +705,17 @@ void draw(){
         }
         else{
             if(x>0){
-                if(grid[x-1][y]/5!=side) DrawRectangle(posX-60,posY,60,60,WHITE);
-                if(y>0&&grid[x-1][y-1]/5!=side) DrawRectangle(posX-60,posY-60,60,60,WHITE);
-                if(y<7&&grid[x-1][y+1]/5!=side) DrawRectangle(posX-60,posY+60,60,60,WHITE); 
+                if(west!=side) DrawRectangle(posX-60,posY,60,60,WHITE);
+                if(y>0&&nwest!=side) DrawRectangle(posX-60,posY-60,60,60,WHITE);
+                if(y<7&&swest!=side) DrawRectangle(posX-60,posY+60,60,60,WHITE); 
             }
             if(x<7){
-                if(grid[x+1][y]/5!=side) DrawRectangle(posX+60,posY,60,60,WHITE);
-                if(y>0&&grid[x+1][y-1]/5!=side) DrawRectangle(posX+60,posY-60,60,60,WHITE);
-                if(y<7&&grid[x+1][y+1]/5!=side) DrawRectangle(posX+60,posY+60,60,60,WHITE); 
+                if(east!=side) DrawRectangle(posX+60,posY,60,60,WHITE);
+                if(y>0&&neast!=side) DrawRectangle(posX+60,posY-60,60,60,WHITE);
+                if(y<7&&seast!=side) DrawRectangle(posX+60,posY+60,60,60,WHITE); 
             }
-            if(y>0&&grid[x][y-1]/5!=side) DrawRectangle(posX,posY-60,60,60,WHITE);
-            if(y<7&&grid[x][y+1]/5!=side) DrawRectangle(posX,posY+60,60,60,WHITE);
+            if(y>0&&north!=side) DrawRectangle(posX,posY-60,60,60,WHITE);
+            if(y<7&&south!=side) DrawRectangle(posX,posY+60,60,60,WHITE);
         }
     }
     // DrawRectangle(120,120,480,480, WHITE);
@@ -713,10 +727,10 @@ void draw(){
     for(int i=0;i<8;i++){
         for(int j=0;j<8;j++){
             if(grid[i][j]==10) continue;
-            bool side=grid[i][j]/5;
+            bool side=(grid[i][j]%10)/5;
             // std::cout<<grid[i][j]<<'\n';
             char temp[2]={characters[(grid[i][j]+10)%5], '\0'};
-            if(temp[0]!='C'&&temp[0]!='I'&&temp[0]!='X'&&temp[0]!='T'&&temp[0]!='U') std::cout<<i<<' '<<j<<' '<<grid[i][j]<<' '<<temp<<'\n';
+            // if(temp[0]!='C'&&temp[0]!='I'&&temp[0]!='X'&&temp[0]!='T'&&temp[0]!='U') std::cout<<i<<' '<<j<<' '<<grid[i][j]<<' '<<temp<<'\n';
             DrawTextEx(GetFontDefault(),temp,piecePos[i][j],30,1,(clicked && x == i && y == j) ? (side ? GREEN : BLUE) : (side ? GRAY : BLACK));
         }
     }
@@ -812,7 +826,10 @@ void update(){
             int mouseY=std::floor(mousePos.y/60-2);
             // std::cout<<mousePos.x<<' '<<mousePos.y<<'\n';
             if(validGrid(mouseX,mouseY)){
+                // std::cout<<mouseX<<' '<<mouseY<<'\n';
                 int enemy=grid[mouseX][mouseY];
+                // std::cout<<enemy<<"\n";
+                if(enemy!=10) enemy%=10; 
                 // std::cout<<piece<<'\n';
                 if(blackPower[curBPower].IsClicked()){
                     if(enemy!=10&&blackPower[curBPower].IsOwn()&&(moveCount&1)==enemy/5){
@@ -827,7 +844,10 @@ void update(){
                     }
                     if(blackPower[curBPower].IsActive()){
                         int lastX=blackPower[curBPower].GetLastX(),lastY=blackPower[curBPower].GetLastY();
+                        // std::cout<<lastX<<' '<<lastY<<'\n';
+                        // std::cout<<mouseX<<' '<<mouseY<<'\n';
                         if(curBPower==0){
+                            std::cout<<lastX<<' '<<lastY<<'\n';
                             grid[lastX][lastY]+=20;
                             blackShield=1;
                         }
@@ -879,6 +899,18 @@ void update(){
                             grayFreeze=1;
                         }
                         else if(curGPower==2){
+                            // std::cout<<lastX<<' '<<lastY<<'\n';
+                            // std::cout<<grid[lastX][lastY]<<' '<<grid[mouseX][mouseY]<<'\n';
+                            // grid[lastX][lastY]%=10;
+                            // grid[mouseX][mouseY]%=10;
+                            // std::cout<<grid[lastX][lastY]<<' '<<grid[mouseX][mouseY]<<'\n';
+                            if(blackPower[curBPower].GetLastX()==lastX&&blackPower[curBPower].GetLastY()==lastY){
+                                blackPower[curBPower].SetLast({mouseX,mouseY});
+                            }   
+                            else if(blackPower[curBPower].GetLastX()==mouseX&&blackPower[curBPower].GetLastY()==mouseY){
+                                blackPower[curBPower].SetLast({lastX,lastY});
+                            }   
+                            // std::swap(piecePos[lastX][lastY],piecePos[mouseX][mouseY]);
                             std::swap(grid[lastX][lastY],grid[mouseX][mouseY]);
                         }
                         if(blackPower[curBPower].IsActive()){
@@ -902,22 +934,28 @@ void update(){
                 }
                 else if(!clicked&&enemy!=10){
                     // std::cout<<move<<' '<<side<<'\n';
-                    if((moveCount&1)==grid[mouseX][mouseY]/5){
+                    if((moveCount&1)==(grid[mouseX][mouseY]%10)/5){
                         clicked=1;
                         x=mouseX;
                         y=mouseY;    
                         posX=120+x*60;
                         posY=120+y*60;
+                        // std::cout<<mouseX<<' '<<mouseY<<'\n';
                     }
+                    // std::cout<<"GOOD\n";
                 }
                 else if(clicked){
+                    // std::cout<<x<<' '<<y<<'\n';
                     int piece=grid[x][y]%5;
                     int difX=abs(mouseX-x),difY=abs(mouseY-y);
-                    bool side=grid[x][y]/5,enemySide=enemy==10?!side:enemy/5;
+                    bool side=(grid[x][y]%10)/5,enemySide=enemy==10?!side:enemy/5;
+                    // std::cout<<grid[x][y]<<' '<<enemy<<'\n';
+                    // std::cout<<side<<' '<<enemySide<<"\n";
                     bool good=0;
                     if(piece==1){
                         if(difX+difY==1&&enemySide!=side){
                             grid[mouseX][mouseY]=(side&&mouseX==0)?8:(!side&&mouseX==7)?3:grid[x][y]; 
+                            // std::cout<<grid[mouseX][mouseY]<<'\n';
                             good=1;
                         }
                     }
@@ -1013,11 +1051,13 @@ void update(){
                         }
                     }
                     if(good){
+                        // std::cout<<"Good\n";
                         if(enemy%5==4){
                             gameOver=1;
                         }
                         if(enemy!=10){
                             enemy%=5;
+                            // std::cout<<enemy<<'\n';
                             if(side){
                                 graveyard[enemy].second++;
                                 cntR++;
@@ -1038,10 +1078,11 @@ void update(){
                                 }
                             }
                         }
+                        // std::cout<<x<<' '<<y<<'\n';
                         if(side){
                             blackPower[curBPower].UpdateCooldown();
                             blackPower[curBPower].UpdateDuration();
-                            if(!blackPower[curBPower].IsActive()){
+                            if(blackPower[curBPower].GetLastX()!=-1&&!blackPower[curBPower].IsActive()){
                                 int dif=blackFreeze?30:20;
                                 grid[blackPower[curBPower].GetLastX()][blackPower[curBPower].GetLastY()]-=dif;
                                 // std::cout<<grid[blackPower[curBPower].GetLastX()][blackPower[curBPower].GetLastY()]<<'\n';
@@ -1055,18 +1096,22 @@ void update(){
                         else{
                             grayPower[curGPower].UpdateCooldown();
                             grayPower[curGPower].UpdateDuration();
-                            if(!grayPower[curGPower].IsActive()){
+                            if(grayPower[curGPower].GetLastX()!=-1&&!grayPower[curGPower].IsActive()){
                                 int dif=grayFreeze?30:20;
+                                // std::cout<<grayPower[curGPower].GetLastX()<<' '<<grayPower[curGPower].GetLastY()<<'\n';
+                                // std::cout<<blackPower[curBPower].GetLastX()<<' '<<blackPower[curGPower].GetLastY()<<'\n';
                                 grid[grayPower[curGPower].GetLastX()][grayPower[curGPower].GetLastY()]-=dif;
                                 // std::cout<<grid[grayPower[curGPower].GetLastX()][grayPower[curGPower].GetLastY()]<<'\n';
                                 grayShield=0;
                                 grayFreeze=0;
+                                // std::cout<<curGPower<<'\n';
                                 grayPower[curGPower].SetLast();
                             }
                             playerBlack.Update(1);
                             turnText.Update("Gray's Turn",GRAY);
                         }
                         grid[x][y]=10;
+                        // std::cout<<"Good\n";
                         piecePos[x][y]={150.f+60*x,150.f+60*y};
                         piecePos[mouseX][mouseY]={150.f+60*mouseX-pieceSize[grid[mouseX][mouseY]%5].x/2,150.f+60*mouseY-pieceSize[grid[mouseX][mouseY]%5].y/2};
                         moveCount++;
