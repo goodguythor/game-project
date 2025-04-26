@@ -1427,7 +1427,7 @@ void initGame(){
         BLACK,
         {0,0},
         {1,1},
-        2
+        1
     );
     grayPower[1].Init(
         {124,0,60,60},
@@ -1441,7 +1441,7 @@ void initGame(){
         BLACK,
         {0,0},
         {0,1},
-        2
+        1
     );
     blackPower[2].Init(
         {186,0,60,60},
