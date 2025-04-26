@@ -607,14 +607,15 @@ void draw(){
         int piece=grid[x][y]%5;
         bool side=(grid[x][y]%10)/5;
         DrawRectangle(posX,posY,60,60,WHITE);
-        int north=y>0?(grid[x][y-1]==10?10:grid[x][y-1]%10)/5:-1;
-        int neast=y>0&&x<7?(grid[x+1][y-1]==10?10:grid[x+1][y-1]%10)/5:-1;
-        int east=x<7?(grid[x+1][y]==10?10:grid[x+1][y]%10)/5:-1;
-        int seast=x<7&&y<7?(grid[x+1][y+1]==10?10:grid[x+1][y+1]%10)/5:-1;
-        int south=y<7?(grid[x][y+1]==10?10:grid[x][y+1]%10)/5:-1;
-        int swest=x>0&&y<7?(grid[x-1][y+1]==10?10:grid[x-1][y+1]%10)/5:-1;
-        int west=x>0?(grid[x-1][y]==10?10:grid[x-1][y]%10)/5:-1;
-        int nwest=x>0&&y>0?(grid[x-1][y-1]==10?10:grid[x-1][y-1]%10)/5:-1;
+        int north  = (y > 0)           ? ((grid[x][y-1] == 10) ? 10 : (((grid[x][y-1]/10) == 2) ? side : (grid[x][y-1] % 10) / 5)) : -1;
+        int neast  = (y > 0 && x < 7)  ? ((grid[x+1][y-1] == 10) ? 10 : (((grid[x+1][y-1]/10) == 2) ? side : (grid[x+1][y-1] % 10) / 5)) : -1;
+        int east   = (x < 7)           ? ((grid[x+1][y] == 10) ? 10 : (((grid[x+1][y]/10) == 2) ? side : (grid[x+1][y] % 10) / 5)) : -1;
+        int seast  = (x < 7 && y < 7)  ? ((grid[x+1][y+1] == 10) ? 10 : (((grid[x+1][y+1]/10) == 2) ? side : (grid[x+1][y+1] % 10) / 5)) : -1;
+        int south  = (y < 7)           ? ((grid[x][y+1] == 10) ? 10 : (((grid[x][y+1]/10) == 2) ? side : (grid[x][y+1] % 10) / 5)) : -1;
+        int swest  = (x > 0 && y < 7)  ? ((grid[x-1][y+1] == 10) ? 10 : (((grid[x-1][y+1]/10) == 2) ? side : (grid[x-1][y+1] % 10) / 5)) : -1;
+        int west   = (x > 0)           ? ((grid[x-1][y] == 10) ? 10 : (((grid[x-1][y]/10) == 2) ? side : (grid[x-1][y] % 10) / 5)) : -1;
+        int nwest  = (x > 0 && y > 0)  ? ((grid[x-1][y-1] == 10) ? 10 : (((grid[x-1][y-1]/10) == 2) ? side : (grid[x-1][y-1] % 10) / 5)) : -1;
+        // std::cout<<side<<' '<<west<<' '<<east<<grid[x-1][y]<<' '<<grid[x+1][y]<<'\n';
         if(piece==1){
             if(x>0&&west!=side) DrawRectangle(posX-60,posY,60,60,WHITE);
             if(x<7&&east!=side) DrawRectangle(posX+60,posY,60,60,WHITE);
@@ -635,7 +636,9 @@ void draw(){
             if(x>0){
                 for(int i=1;x-i>=0&&i<=y;i++){
                     int place=grid[x-i][y-i];
-                    if((place%10)/5!=side){
+                    if(place/10==2) place=side;
+                    else if(place!=10) place%=10;
+                    if(place/5!=side){
                         DrawRectangle(posX-60*i,posY-60*i,60,60,WHITE);
                         if(place!=10) break;
                     } 
@@ -643,7 +646,9 @@ void draw(){
                 }
                 for(int i=1;x-i>=0&&i<8-y;i++){
                     int place=grid[x-i][y+i];
-                    if((place%10)/5!=side){
+                    if(place/10==2) place=side;
+                    else if(place!=10) place%=10;
+                    if(place/5!=side){
                         DrawRectangle(posX-60*i,posY+60*i,60,60,WHITE);
                         if(place!=10) break;
                     } 
@@ -653,7 +658,9 @@ void draw(){
             if(x<7){
                 for(int i=1;x+i<8&&i<=y;i++){
                     int place=grid[x+i][y-i];
-                    if((place%10)/5!=side){
+                    if(place/10==2) place=side;
+                    else if(place!=10) place%=10;
+                    if(place/5!=side){
                         DrawRectangle(posX+60*i,posY-60*i,60,60,WHITE);
                         if(place!=10) break;
                     }
@@ -661,7 +668,9 @@ void draw(){
                 }
                 for(int i=1;x+i<8&&i<8-y;i++){
                     int place=grid[x+i][y+i];
-                    if((place%10)/5!=side){
+                    if(place/10==2) place=side;
+                    else if(place!=10) place%=10;
+                    if(place/5!=side){
                         DrawRectangle(posX+60*i,posY+60*i,60,60,WHITE);
                         if(place!=10) break;
                     }
@@ -672,7 +681,9 @@ void draw(){
         else if(piece==3){
             for(int i=1;i<=y;i++){
                 int place=grid[x][y-i];
-                if((place%10)/5!=side){
+                if(place/10==2) place=side;
+                else if(place!=10) place%=10;
+                if(place/5!=side){
                     DrawRectangle(posX,posY-60*i,60,60,WHITE);
                     if(place!=10) break;
                 }
@@ -680,7 +691,9 @@ void draw(){
             }
             for(int i=1;i<8-y;i++){
                 int place=grid[x][y+i];
-                if((place%10)/5!=side){
+                if(place/10==2) place=side;
+                else if(place!=10) place%=10;
+                if(place/5!=side){
                     DrawRectangle(posX,posY+60*i,60,60,WHITE);
                     if(place!=10) break;
                 }
@@ -688,7 +701,9 @@ void draw(){
             }
             for(int i=1;i<=x;i++){
                 int place=grid[x-i][y];
-                if((place%10)/5!=side){
+                if(place/10==2) place=side;
+                else if(place!=10) place%=10;
+                if(place/5!=side){
                     DrawRectangle(posX-60*i,posY,60,60,WHITE);
                     if(place!=10) break;
                 }
@@ -696,7 +711,9 @@ void draw(){
             }
             for(int i=1;i<8-x;i++){
                 int place=grid[x+i][y];
-                if((place%10)/5!=side){
+                if(place/10==2) place=side;
+                else if(place!=10) place%=10;
+                if(place/5!=side){
                     DrawRectangle(posX+60*i,posY,60,60,WHITE);
                     if(place!=10) break;
                 }
@@ -730,6 +747,9 @@ void draw(){
             bool side=(grid[i][j]%10)/5;
             // std::cout<<grid[i][j]<<'\n';
             char temp[2]={characters[(grid[i][j]+10)%5], '\0'};
+            Vector2 powerPos={120+60.f*i,120+60.f*j};
+            if(grid[i][j]/10==2) DrawTextureRec(atlas,{0,0,60,60},powerPos,WHITE);
+            else if(grid[i][j]/10==3) DrawTextureRec(atlas,{124,0,60,60},powerPos,WHITE);
             // if(temp[0]!='C'&&temp[0]!='I'&&temp[0]!='X'&&temp[0]!='T'&&temp[0]!='U') std::cout<<i<<' '<<j<<' '<<grid[i][j]<<' '<<temp<<'\n';
             DrawTextEx(GetFontDefault(),temp,piecePos[i][j],30,1,(clicked && x == i && y == j) ? (side ? GREEN : BLUE) : (side ? GRAY : BLACK));
         }
@@ -768,6 +788,14 @@ void draw(){
     }
     blackPower[curBPower].Draw(1,0);
     grayPower[curGPower].Draw(1,1);
+    if(blackPower[curBPower].IsClicked()&&blackPower[curBPower].GetLastX()!=-1&&blackPower[curBPower].IsTwice()){
+        int lastX=blackPower[curBPower].GetLastX(),lastY=blackPower[curBPower].GetLastY();
+        DrawTextureRec(atlas,{186,0,60,60},{120+60.f*lastX,120+60.f*lastY},WHITE);
+    }
+    if(grayPower[curGPower].IsClicked()&&grayPower[curGPower].GetLastX()!=-1&&grayPower[curGPower].IsTwice()){
+        int lastX=grayPower[curGPower].GetLastX(),lastY=grayPower[curGPower].GetLastY();
+        DrawTextureRec(atlas,{186,0,60,60},{120+60.f*lastX,120+60.f*lastY},WHITE);
+    }
 }
 
 void update(){
@@ -832,22 +860,23 @@ void update(){
                 if(enemy!=10) enemy%=10; 
                 // std::cout<<piece<<'\n';
                 if(blackPower[curBPower].IsClicked()){
-                    if(enemy!=10&&blackPower[curBPower].IsOwn()&&(moveCount&1)==enemy/5){
+                    if(enemy!=10&&grid[mouseX][mouseY]<10&&blackPower[curBPower].IsOwn()&&(moveCount&1)==enemy/5){
                         blackPower[curBPower].Activate(mouseX,mouseY);
                     }
-                    else if(enemy!=10&&!blackPower[curBPower].IsOwn()&&(moveCount&1)!=enemy/5){
+                    else if(enemy!=10&&grid[mouseX][mouseY]<10&&!blackPower[curBPower].IsOwn()&&(moveCount&1)!=enemy/5){
                         blackPower[curBPower].Activate(mouseX,mouseY);
                     }
                     else{
                         blackPower[curBPower].SetClicked(0);
                         blackPower[curBPower].SetOnce();
+                        blackPower[curBPower].SetLast();
                     }
                     if(blackPower[curBPower].IsActive()){
                         int lastX=blackPower[curBPower].GetLastX(),lastY=blackPower[curBPower].GetLastY();
                         // std::cout<<lastX<<' '<<lastY<<'\n';
                         // std::cout<<mouseX<<' '<<mouseY<<'\n';
                         if(curBPower==0){
-                            std::cout<<lastX<<' '<<lastY<<'\n';
+                            // std::cout<<lastX<<' '<<lastY<<'\n';
                             grid[lastX][lastY]+=20;
                             blackShield=1;
                         }
@@ -857,12 +886,23 @@ void update(){
                         }
                         else if(curBPower==2){
                             std::swap(grid[lastX][lastY],grid[mouseX][mouseY]);
+                            if(grayPower[curGPower].IsActive()){
+                                if(grayPower[curGPower].GetLastX()==lastX&&grayPower[curGPower].GetLastY()==lastY){
+                                    grayPower[curGPower].SetLast({mouseX,mouseY});
+                                }   
+                                else if(grayPower[curGPower].GetLastX()==mouseX&&grayPower[curGPower].GetLastY()==mouseY){
+                                    grayPower[curGPower].SetLast({lastX,lastY});
+                                }
+                            }
+                            piecePos[lastX][lastY]={150.f+60*lastX-pieceSize[grid[lastX][lastY]%5].x/2,150.f+60*lastY-pieceSize[grid[lastX][lastY]%5].y/2};
+                            piecePos[mouseX][mouseY]={150.f+60*mouseX-pieceSize[grid[mouseX][mouseY]%5].x/2,150.f+60*mouseY-pieceSize[grid[mouseX][mouseY]%5].y/2};
+                            // std::swap(piecePos[lastX][lastY],piecePos[mouseX][mouseY]);
                         }
                         if(grayPower[curGPower].IsActive()){
                             grayPower[curGPower].UpdateCooldown();
                             grayPower[curGPower].UpdateDuration();
                             if(!grayPower[curGPower].IsActive()){
-                                int dif=grayFreeze?30:20;
+                                int dif=grayFreeze?30:grayShield?20:0;
                                 grid[grayPower[curGPower].GetLastX()][grayPower[curGPower].GetLastY()]-=dif;
                                 // std::cout<<grid[grayPower[curGPower].GetLastX()][grayPower[curGPower].GetLastY()]<<'\n';
                                 grayShield=0;
@@ -878,15 +918,16 @@ void update(){
                     }
                 }
                 else if(grayPower[curGPower].IsClicked()){
-                    if(enemy!=10&&grayPower[curGPower].IsOwn()&&(moveCount&1)==enemy/5){
+                    if(enemy!=10&&grid[mouseX][mouseY]<10&&grayPower[curGPower].IsOwn()&&(moveCount&1)==enemy/5){
                         grayPower[curGPower].Activate(mouseX,mouseY);
                     }
-                    else if(enemy!=10&&!grayPower[curGPower].IsOwn()&&(moveCount&1)!=enemy/5){
+                    else if(enemy!=10&&grid[mouseX][mouseY]<10&&!grayPower[curGPower].IsOwn()&&(moveCount&1)!=enemy/5){
                         grayPower[curGPower].Activate(mouseX,mouseY);
                     }
                     else{
                         grayPower[curGPower].SetClicked(0);
                         grayPower[curGPower].SetOnce();
+                        grayPower[curGPower].SetLast();
                     }
                     if(grayPower[curGPower].IsActive()){
                         int lastX=grayPower[curGPower].GetLastX(),lastY=grayPower[curGPower].GetLastY();
@@ -904,20 +945,24 @@ void update(){
                             // grid[lastX][lastY]%=10;
                             // grid[mouseX][mouseY]%=10;
                             // std::cout<<grid[lastX][lastY]<<' '<<grid[mouseX][mouseY]<<'\n';
-                            if(blackPower[curBPower].GetLastX()==lastX&&blackPower[curBPower].GetLastY()==lastY){
-                                blackPower[curBPower].SetLast({mouseX,mouseY});
-                            }   
-                            else if(blackPower[curBPower].GetLastX()==mouseX&&blackPower[curBPower].GetLastY()==mouseY){
-                                blackPower[curBPower].SetLast({lastX,lastY});
-                            }   
-                            // std::swap(piecePos[lastX][lastY],piecePos[mouseX][mouseY]);
                             std::swap(grid[lastX][lastY],grid[mouseX][mouseY]);
+                            if(blackPower[curBPower].IsActive()){
+                                if(blackPower[curBPower].GetLastX()==lastX&&blackPower[curBPower].GetLastY()==lastY){
+                                    blackPower[curBPower].SetLast({mouseX,mouseY});
+                                }   
+                                else if(blackPower[curBPower].GetLastX()==mouseX&&blackPower[curBPower].GetLastY()==mouseY){
+                                    blackPower[curBPower].SetLast({lastX,lastY});
+                                }
+                            }   
+                            piecePos[lastX][lastY]={150.f+60*lastX-pieceSize[grid[lastX][lastY]%5].x/2,150.f+60*lastY-pieceSize[grid[lastX][lastY]%5].y/2};
+                            piecePos[mouseX][mouseY]={150.f+60*mouseX-pieceSize[grid[mouseX][mouseY]%5].x/2,150.f+60*mouseY-pieceSize[grid[mouseX][mouseY]%5].y/2};
+                            // std::swap(piecePos[lastX][lastY],piecePos[mouseX][mouseY]);
                         }
                         if(blackPower[curBPower].IsActive()){
                             blackPower[curBPower].UpdateCooldown();
                             blackPower[curBPower].UpdateDuration();
                             if(!blackPower[curBPower].IsActive()){
-                                int dif=blackFreeze?30:20;
+                                int dif=blackFreeze?30:blackShield?20:0;
                                 grid[blackPower[curBPower].GetLastX()][blackPower[curBPower].GetLastY()]-=dif;
                                 // std::cout<<grid[blackPower[curBPower].GetLastX()][blackPower[curBPower].GetLastY()]<<'\n';
                                 blackFreeze=0;
@@ -934,7 +979,7 @@ void update(){
                 }
                 else if(!clicked&&enemy!=10){
                     // std::cout<<move<<' '<<side<<'\n';
-                    if((moveCount&1)==(grid[mouseX][mouseY]%10)/5){
+                    if(grid[mouseX][mouseY]<10&&(moveCount&1)==(grid[mouseX][mouseY]%10)/5){
                         clicked=1;
                         x=mouseX;
                         y=mouseY;    
@@ -948,9 +993,9 @@ void update(){
                     // std::cout<<x<<' '<<y<<'\n';
                     int piece=grid[x][y]%5;
                     int difX=abs(mouseX-x),difY=abs(mouseY-y);
-                    bool side=(grid[x][y]%10)/5,enemySide=enemy==10?!side:enemy/5;
-                    // std::cout<<grid[x][y]<<' '<<enemy<<'\n';
-                    // std::cout<<side<<' '<<enemySide<<"\n";
+                    bool side=(grid[x][y]%10)/5,enemySide = (grid[mouseX][mouseY] == 10) ? (!side) : ((grid[mouseX][mouseY] / 10 == 2) ? side : (grid[mouseX][mouseY] / 5));                    ;
+                    std::cout<<grid[x][y]<<' '<<grid[mouseX][mouseY]<<'\n';
+                    std::cout<<side<<' '<<enemySide<<"\n";
                     bool good=0;
                     if(piece==1){
                         if(difX+difY==1&&enemySide!=side){
@@ -1083,8 +1128,10 @@ void update(){
                             blackPower[curBPower].UpdateCooldown();
                             blackPower[curBPower].UpdateDuration();
                             if(blackPower[curBPower].GetLastX()!=-1&&!blackPower[curBPower].IsActive()){
-                                int dif=blackFreeze?30:20;
-                                grid[blackPower[curBPower].GetLastX()][blackPower[curBPower].GetLastY()]-=dif;
+                                int dif=blackFreeze?30:blackShield?20:0;
+                                int lastX=blackPower[curBPower].GetLastX(),lastY=blackPower[curBPower].GetLastY();
+                                // if(lastX==mouseX&&lastY==mouseY) 
+                                grid[lastX][lastY]-=dif;
                                 // std::cout<<grid[blackPower[curBPower].GetLastX()][blackPower[curBPower].GetLastY()]<<'\n';
                                 blackFreeze=0;
                                 blackShield=0;
@@ -1097,10 +1144,12 @@ void update(){
                             grayPower[curGPower].UpdateCooldown();
                             grayPower[curGPower].UpdateDuration();
                             if(grayPower[curGPower].GetLastX()!=-1&&!grayPower[curGPower].IsActive()){
-                                int dif=grayFreeze?30:20;
+                                int dif=grayFreeze?30:grayShield?20:0;
                                 // std::cout<<grayPower[curGPower].GetLastX()<<' '<<grayPower[curGPower].GetLastY()<<'\n';
                                 // std::cout<<blackPower[curBPower].GetLastX()<<' '<<blackPower[curGPower].GetLastY()<<'\n';
-                                grid[grayPower[curGPower].GetLastX()][grayPower[curGPower].GetLastY()]-=dif;
+                                int lastX=grayPower[curGPower].GetLastX(),lastY=grayPower[curGPower].GetLastY();
+                                // if(lastX==mouseX||lastY==mouseY) 
+                                grid[lastX][lastY]-=dif;
                                 // std::cout<<grid[grayPower[curGPower].GetLastX()][grayPower[curGPower].GetLastY()]<<'\n';
                                 grayShield=0;
                                 grayFreeze=0;
@@ -1110,6 +1159,7 @@ void update(){
                             playerBlack.Update(1);
                             turnText.Update("Gray's Turn",GRAY);
                         }
+                        // KYKNYA GARA GARA X,Y GA KE RESET
                         grid[x][y]=10;
                         // std::cout<<"Good\n";
                         piecePos[x][y]={150.f+60*x,150.f+60*y};
@@ -1337,12 +1387,12 @@ void initGame(){
     songText.Init("Song: ganyangffff.mp3",{screenWidth/2,315},30,WHITE,{1,0},{0,1});
     blackPower[0].Init(
         {0,0,60,60},
-        "Make one piece immune to enemy capture for 1 turn\nCooldown: 10 turns",
+        "Make one piece immune to enemy capture for 2 turn\nCooldown: 10 turns",
         {1,0},
         {menuBox.x-70,menuBox.y},
         24,
         10,
-        1,
+        2,
         WHITE,
         BLACK,
         {0,0},
@@ -1352,12 +1402,12 @@ void initGame(){
     blackPower[0].SetUsable(1);
     grayPower[0].Init(
         {0,0,60,60},
-        "Make one piece immune to enemy capture for 1 turn\nCooldown: 10 turns",
+        "Make one piece immune to enemy capture for 2 turn\nCooldown: 10 turns",
         {1,0},
         {menuBox.x+menuBox.width+10,menuBox.y},
         24,
         10,
-        1,
+        2,
         WHITE,
         BLACK,
         {0,0},
@@ -1367,31 +1417,31 @@ void initGame(){
     grayPower[0].SetUsable(1);
     blackPower[1].Init(
         {124,0,60,60},
-        "Make one enemy piece unable to move for 1 turn\nCooldown: 10 turns",
+        "Make one enemy piece unable to move for 2 turn\nCooldown: 10 turns",
         {0,0},
         {menuBox.x-70,menuBox.y+70},
         24,
         10,
-        1,
+        2,
         WHITE,
         BLACK,
         {0,0},
         {1,1},
-        1
+        2
     );
     grayPower[1].Init(
         {124,0,60,60},
-        "Make one enemy piece unable to move for 1 turn\nCooldown: 10 turns",
+        "Make one enemy piece unable to move for 2 turn\nCooldown: 10 turns",
         {0,0},
         {menuBox.x+menuBox.width+10,menuBox.y+70},
         24,
         10,
-        1,
+        2,
         WHITE,
         BLACK,
         {0,0},
         {0,1},
-        1
+        2
     );
     blackPower[2].Init(
         {186,0,60,60},
