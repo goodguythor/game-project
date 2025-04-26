@@ -994,8 +994,8 @@ void update(){
                     int piece=grid[x][y]%5;
                     int difX=abs(mouseX-x),difY=abs(mouseY-y);
                     bool side=(grid[x][y]%10)/5,enemySide = (grid[mouseX][mouseY] == 10) ? (!side) : ((grid[mouseX][mouseY] / 10 == 2) ? side : (grid[mouseX][mouseY] / 5));                    ;
-                    std::cout<<grid[x][y]<<' '<<grid[mouseX][mouseY]<<'\n';
-                    std::cout<<side<<' '<<enemySide<<"\n";
+                    // std::cout<<grid[x][y]<<' '<<grid[mouseX][mouseY]<<'\n';
+                    // std::cout<<side<<' '<<enemySide<<"\n";
                     bool good=0;
                     if(piece==1){
                         if(difX+difY==1&&enemySide!=side){
@@ -1125,36 +1125,40 @@ void update(){
                         }
                         // std::cout<<x<<' '<<y<<'\n';
                         if(side){
-                            blackPower[curBPower].UpdateCooldown();
-                            blackPower[curBPower].UpdateDuration();
-                            if(blackPower[curBPower].GetLastX()!=-1&&!blackPower[curBPower].IsActive()){
-                                int dif=blackFreeze?30:blackShield?20:0;
-                                int lastX=blackPower[curBPower].GetLastX(),lastY=blackPower[curBPower].GetLastY();
-                                // if(lastX==mouseX&&lastY==mouseY) 
-                                grid[lastX][lastY]-=dif;
-                                // std::cout<<grid[blackPower[curBPower].GetLastX()][blackPower[curBPower].GetLastY()]<<'\n';
-                                blackFreeze=0;
-                                blackShield=0;
-                                blackPower[curBPower].SetLast();
+                            if(blackPower[curBPower].IsActive()){
+                                blackPower[curBPower].UpdateCooldown();
+                                blackPower[curBPower].UpdateDuration();
+                                if(blackPower[curBPower].GetLastX()!=-1&&!blackPower[curBPower].IsActive()){
+                                    int dif=blackFreeze?30:blackShield?20:0;
+                                    int lastX=blackPower[curBPower].GetLastX(),lastY=blackPower[curBPower].GetLastY();
+                                    // if(lastX==mouseX&&lastY==mouseY) 
+                                    grid[lastX][lastY]-=dif;
+                                    // std::cout<<grid[blackPower[curBPower].GetLastX()][blackPower[curBPower].GetLastY()]<<'\n';
+                                    blackFreeze=0;
+                                    blackShield=0;
+                                    blackPower[curBPower].SetLast();
+                                }
                             }
                             playerGray.Update(1);
                             turnText.Update("Black's Turn",BLACK);
                         }
                         else{
-                            grayPower[curGPower].UpdateCooldown();
-                            grayPower[curGPower].UpdateDuration();
-                            if(grayPower[curGPower].GetLastX()!=-1&&!grayPower[curGPower].IsActive()){
-                                int dif=grayFreeze?30:grayShield?20:0;
-                                // std::cout<<grayPower[curGPower].GetLastX()<<' '<<grayPower[curGPower].GetLastY()<<'\n';
-                                // std::cout<<blackPower[curBPower].GetLastX()<<' '<<blackPower[curGPower].GetLastY()<<'\n';
-                                int lastX=grayPower[curGPower].GetLastX(),lastY=grayPower[curGPower].GetLastY();
-                                // if(lastX==mouseX||lastY==mouseY) 
-                                grid[lastX][lastY]-=dif;
-                                // std::cout<<grid[grayPower[curGPower].GetLastX()][grayPower[curGPower].GetLastY()]<<'\n';
-                                grayShield=0;
-                                grayFreeze=0;
-                                // std::cout<<curGPower<<'\n';
-                                grayPower[curGPower].SetLast();
+                            if(grayPower[curGPower].IsActive()){
+                                grayPower[curGPower].UpdateCooldown();
+                                grayPower[curGPower].UpdateDuration();
+                                if(grayPower[curGPower].GetLastX()!=-1&&!grayPower[curGPower].IsActive()){
+                                    int dif=grayFreeze?30:grayShield?20:0;
+                                    // std::cout<<grayPower[curGPower].GetLastX()<<' '<<grayPower[curGPower].GetLastY()<<'\n';
+                                    // std::cout<<blackPower[curBPower].GetLastX()<<' '<<blackPower[curGPower].GetLastY()<<'\n';
+                                    int lastX=grayPower[curGPower].GetLastX(),lastY=grayPower[curGPower].GetLastY();
+                                    // if(lastX==mouseX||lastY==mouseY) 
+                                    grid[lastX][lastY]-=dif;
+                                    // std::cout<<grid[grayPower[curGPower].GetLastX()][grayPower[curGPower].GetLastY()]<<'\n';
+                                    grayShield=0;
+                                    grayFreeze=0;
+                                    // std::cout<<curGPower<<'\n';
+                                    grayPower[curGPower].SetLast();
+                                }   
                             }
                             playerBlack.Update(1);
                             turnText.Update("Gray's Turn",GRAY);
