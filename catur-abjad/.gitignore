@@ -3,3 +3,4 @@ catur-abjad
 callgrind.*
 lib
 include
+*.supp
