@@ -1,3 +1,5 @@
 catur-abjad
 *.exe
 callgrind.*
+lib
+include
